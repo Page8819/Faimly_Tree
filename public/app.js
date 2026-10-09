@@ -41,7 +41,7 @@ function createPerson({first,last,sex,birthYear,gen=0,parentIds=[],adoptiveParen
  const p={id:id(),first,last,sex,birthYear,deathYear:null,gen,parentIds:[...parentIds],adoptiveParentIds:[...adoptiveParentIds],inFamily,city,
  partnerId:null,partnerSince:null,formerPartners:[],education:education??(birthYear<=state.year-25?int(1,3):0),jobLevel:jobLevel??(birthYear<=state.year-20?int(1,3):0),wealth:wealth??int(300,6500),
  traits:makeTraits(parentIds),bonds:{},eyeTint:pick(['hazel','brown','brown','blue','green']),hairTint:pick(['brown','black','blond','auburn']),memory:[]};
- LEGACY_HUMAN.ensure(p,state.year-birthYear);state.people[p.id]=p;return p;
+ LEGACY_HUMAN.ensure(p,state.year-birthYear);LEGACY_ECONOMY.ensure(p);state.people[p.id]=p;return p;
 }
 function addEvent(year,type,message,personIds=[]){state.events.push({id:state.nextEvent++,year,type,message,personIds:[...new Set(personIds.filter(Boolean))]})}
 function bond(a,b,value){a.bonds[b.id]=Math.max(0,Math.min(100,(a.bonds[b.id]??50)+value));b.bonds[a.id]=Math.max(0,Math.min(100,(b.bonds[a.id]??50)+value))}
@@ -96,11 +96,18 @@ function meetPartner(p){if(p.partnerId||!alive(p)||age(p)<18||state.nextId>MAX_P
 }
 function maybeRelocate(p){if(chance(.012)){const from=p.city;let next=pick(cities);if(next!==from){p.city=next;addEvent(state.year,'move',`${full(p)} moved from ${from} to ${next}.`,[p.id]);const q=partner(p);if(q&&chance(.75))q.city=next;}}}
 function incomeFor(p){const base=[0,25000,41000,61000,92000,135000,185000];return base[Math.max(0,Math.min(p.jobLevel,6))]*(.85+p.education*.07)}
-function yearlyEconomy(p){const a=age(p);if(a<18)return;LEGACY_CONSEQUENCES.annual(p,a,state.year);if(p.retired){p.wealth+=Math.round(Math.max(11000,incomeFor(p)*.2)-17000+rnd()*2500);return;}if(a<28&&p.education<3&&chance(.13)){p.education++;if(chance(.3))addEvent(state.year,'education',`${full(p)} completed additional education.`,[p.id]);}
- if(a>=67){p.wealth+=Math.round(incomeFor(p)*.16-19000+rnd()*4000);return}
- if(chance(LEGACY_CONSEQUENCES.careerOdds(p))&&p.jobLevel<6){p.jobLevel++;addEvent(state.year,'career',`${full(p)} advanced their career.`,[p.id]);}
- const income=incomeFor(p),living=income*(.66+rnd()*.17)+int(2600,6200);p.wealth+=Math.round(income-living);
- if(p.wealth < -100000)p.wealth=-100000;
+function yearlyEconomy(p){
+ const a=age(p);if(a<18)return;
+ LEGACY_CONSEQUENCES.annual(p,a,state.year);
+ if(a<28&&p.education<3&&chance(.13)){
+  p.education++;if(chance(.3))addEvent(state.year,'education',full(p)+' completed additional education.',[p.id]);
+ }
+ if(!p.retired&&a<67&&chance(LEGACY_CONSEQUENCES.careerOdds(p)*LEGACY_HUMAN.careerModifier(p))&&p.jobLevel<6){
+  p.jobLevel++;addEvent(state.year,'career',full(p)+' advanced their career.',[p.id]);
+ }
+ const dependentChildren=kids(p).filter(c=>alive(c)&&age(c)<18).length;
+ const q=partner(p);
+ return LEGACY_ECONOMY.annual(p,{age:a,year:state.year,income:incomeFor(p),city:p.city,dependents:dependentChildren,hasPartner:!!(q&&alive(q)),rnd});
 }
 function simulateOneYear(){state.year++;
  const start=persons();
@@ -244,6 +251,14 @@ function decide(action){
   if(age(p)<18){toast('Must be an adult to move independently.');return}
   const old=p.city;let next=cities[(cities.indexOf(old)+1+int(0,3))%cities.length];p.city=next;p.wealth-=2100;
   addEvent(state.year,'move',`${full(p)} relocated from ${old} to ${next}.`,[p.id]);toast(`Moved to ${next}.`);
+ } else if(action==='home'){
+  const other=partner(p);const bought=LEGACY_ECONOMY.purchaseHome(p,{age:age(p),partnerHome:!!(other&&other.finance?.propertyValue>0)});
+  if(bought.ok)addEvent(state.year,'housing',full(p)+' '+bought.message,[p.id,other?.id]);
+  toast(bought.message);
+ } else if(action==='budget'){
+  const mode=LEGACY_ECONOMY.changeBudget(p);
+  addEvent(state.year,'economy',full(p)+' switched to a '+mode+' household budget.',[p.id]);
+  toast('Household budget: '+mode+'. Future expenses will change.');
  } else if(action==='support'){
   if(p.wealth<1000){toast('Requires at least $1,000 in savings.');return}
   const rel=related(p).filter(alive).filter(q=>q.id!==p.id);
@@ -302,7 +317,7 @@ function showPersonStats(id,tab='overview',page=0){
  if(!allowed.includes(tab))tab='overview';
  const parents=(p.parentIds||[]).map(get).filter(Boolean);
  const adopters=(p.adoptiveParentIds||[]).map(get).filter(Boolean);
- const children=kids(p),q=partner(p),life=p.lifePath||{},needs=LEGACY_HUMAN.snapshot(p,age(p));
+ const children=kids(p),q=partner(p),life=p.lifePath||{},needs=LEGACY_HUMAN.snapshot(p,age(p)),finance=LEGACY_ECONOMY.statement(p);
  const history=state.events.filter(e=>e.personIds?.includes(p.id)).slice().reverse();
  const rel=related(p).filter(Boolean).map(person=>{
   const parent=parents.some(x=>x.id===person.id)||adopters.some(x=>x.id===person.id);
@@ -334,14 +349,20 @@ function showPersonStats(id,tab='overview',page=0){
   ];
   const traits=[['Curiosity',p.traits?.openness],['Discipline',p.traits?.conscientiousness],['Sociability',p.traits?.extraversion],['Cooperation',p.traits?.agreeableness],['Emotional sensitivity',p.traits?.emotionality]];
   body=(page===0?title('Wellbeing & needs')+'<div class="person-page-traits">'+[['Physical health',needs.physical],['Mental wellbeing',needs.mental],['Energy',needs.energy],['Stress',needs.stress],['Resilience',needs.resilience],['Agency',needs.agency]].map(([a,b])=>trait(a,b)).join('')+'</div>'+title('Personality · five traits')+'<div class="person-page-traits">'+traits.map(([a,b])=>trait(a,b)).join('')+'</div>':
-   title('Career, learning & finances')+'<div class="person-page-facts">'+facts.map(([a,b])=>metric(a,b)).join('')+'</div>')+pageControls('stats',Math.max(0,Math.min(1,page)),2);
+   (page===1?title('Career & education')+'<div class="person-page-facts">'+facts.map(([a,b])=>metric(a,b)).join('')+'</div>':
+   title('Household economy')+'<div class="person-page-facts">'+[
+   ['Cash balance',money(finance.cash)],['Investments',money(finance.investments)],['Property value',money(finance.propertyValue)],['Home equity',money(finance.equity)],
+   ['Mortgage',money(finance.mortgage)],['Consumer debt',money(finance.consumerDebt)],['Education debt',money(life.educationDebt||0)],['Net worth',money(finance.netWorth)],
+   ['Last gross income',money(finance.lastStatement?.gross||0)],['Income taxes',money(finance.lastStatement?.tax||0)],['Annual living costs',money(finance.lastStatement?.living||0)],['Annual net change',money(finance.lastStatement?.netChange||0)],
+   ['Household budget',finance.budgetMode],['Mortgage payment',money(finance.lastStatement?.mortgagePayment||0)],['Interest on debts',money(finance.lastStatement?.debtInterest||0)],['Home appreciation',money(finance.lastStatement?.houseGrowth||0)]
+   ].map(([a,b])=>metric(a,b)).join('')+'</div>'))+pageControls('stats',Math.max(0,Math.min(2,page)),3);
  }else if(tab==='family'){
   const size=6,pages=Math.max(1,Math.ceil(rel.length/size));page=Math.max(0,Math.min(page,pages-1));
   body=title('Family connections · '+rel.length)+
    '<div class="person-page-connections">'+(rel.length?rel.slice(page*size,(page+1)*size).map(x=>'<button class="person-page-relation" data-person="'+esc(x.person.id)+'"><span><strong>'+esc(full(x.person))+'</strong><small>'+esc(x.type)+' · '+esc(ages(x.person))+'</small></span><b>'+x.strength+' / 100</b></button>').join(''):'<p class="person-page-empty">No recorded close family connections yet.</p>')+'</div>'+pageControls('family',page,pages);
  }else if(tab==='actions'){
   const canAct=alive(p)&&(state.mode==='family'||state.controlledId===p.id);
-  const actions=[['partner','♥','Find partner'],['child','✦','Grow family'],['career','↑','Career'],['educate','◈','Education'],['move','⌁','Relocate'],['support','♡','Support kin']];
+  const actions=[['partner','♥','Find partner'],['child','✦','Grow family'],['career','↑','Career'],['educate','◈','Education'],['move','⌁','Relocate'],['support','♡','Support kin'],['home','⌂','Buy a home'],['budget','◇','Adjust budget']];
   body=title('Life decisions')+'<div class="person-page-actions">'+actions.map(([id,icon,label])=>'<button class="person-page-action" data-action="'+id+'" '+(canAct?'':'disabled')+'><span>'+icon+'</span>'+esc(label)+'</button>').join('')+'</div>'+
    (!alive(p)?'<p class="person-page-description">Their life has ended. The family record remains available.</p>':
     state.mode==='individual'&&state.controlledId!==p.id?'<button class="person-page-take" id="sheet-take-control">▶ Live as '+esc(p.first)+'</button>':
