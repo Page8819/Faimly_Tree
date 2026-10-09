@@ -3,7 +3,7 @@
 (function(root){
  const money=x=>Math.round(Number.isFinite(x)?x:0);
  const clamp=(x,a,b)=>Math.max(a,Math.min(b,Number.isFinite(x)?x:a));
- const region={New York:1.45,Boston:1.37,'San Francisco':1.85,Seattle:1.36,'San Diego':1.42,Chicago:1.06,Philadelphia:1.08,Austin:1.12,Denver:1.18,Atlanta:1.06,Portland:1.21,Nashville:1.07,Minneapolis:1.08,Raleigh:1.03};
+ const region={'New York':1.45,Boston:1.37,'San Francisco':1.85,Seattle:1.36,'San Diego':1.42,Chicago:1.06,Philadelphia:1.08,Austin:1.12,Denver:1.18,Atlanta:1.06,Portland:1.21,Nashville:1.07,Minneapolis:1.08,Raleigh:1.03};
  function netWorth(f){return money(f.cash+f.investments+f.propertyValue-f.mortgage-f.consumerDebt);}
  function ensure(p){
   if(!p.finance||typeof p.finance!=='object'){
@@ -30,7 +30,7 @@
  }
  function statement(p){const f=reconcile(p);return {...f,netWorth:netWorth(f),equity:Math.round(f.propertyValue-f.mortgage)};}
  function annual(p,{year,age,income=0,city='New York',dependents=0,hasPartner=false,rnd=()=>.5}){
-  const f=reconcile(p);if(f.lastYear===year)return f.lastStatement;
+  const f=reconcile(p);if(f.lastYear===year)return f.lastStatement;const before=netWorth(f);
   const regionFactor=region[city]||1.1;
   const workAge=age>=18&&age<67&&!p.retired;
   const wages=workAge?Math.max(0,money(income)):0;
@@ -66,7 +66,7 @@
   f.cash=money(f.cash);f.consumerDebt=money(f.consumerDebt);
   f.lastYear=year;
   p.wealth=netWorth(f);
-  const update={year,gross,tax,living,netIncome,investmentReturn,houseGrowth,mortgageInterest,mortgagePayment,debtInterest,netChange:p.wealth-money(p.wealth-(netIncome-living)),netWorth:p.wealth};
+  const update={year,gross,tax,living,netIncome,investmentReturn,houseGrowth,mortgageInterest,mortgagePayment,debtInterest,netChange:p.wealth-before,netWorth:p.wealth};
   f.lastStatement=update;
   f.history.push({year,netWorth:p.wealth,gross,expenses:living+tax,debt:f.mortgage+f.consumerDebt});
   if(f.history.length>30)f.history.shift();
