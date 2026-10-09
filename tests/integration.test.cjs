@@ -6,7 +6,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  function node(selector){
   if(!els.has(selector))els.set(selector,{
    innerHTML:'',textContent:'',value:'',scrollTop:0,dataset:{},
-   classList:{add(){},remove(){},toggle(){}},
+   classList:(()=>{const values=new Set();return {add(x){values.add(x)},remove(x){values.delete(x)},toggle(x,force){const enable=force===undefined?!values.has(x):force;enable?values.add(x):values.delete(x);return enable},contains(x){return values.has(x)}}})(),
    getBoundingClientRect(){return {width:390,height:360,left:0,top:0}},
    getContext(){return ctx},
    addEventListener(type,callback){(this.handlers??={})[type]=callback},setPointerCapture(){},setAttribute(){},appendChild(){},remove(){},
@@ -39,11 +39,32 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.match(css,/\.app\.immersive-tree\{grid-template-rows/);
  assert.match(css,/#profile-panel\{display:none!important\}/);
  api.showPersonStats(state.controlledId);
+ assert.match(node('#modal-content').innerHTML,/Family overview/);
+ assert.match(node('#modal-content').innerHTML,/person-sheet-tabs/);
+ assert.doesNotMatch(node('#modal-content').innerHTML,/person-sheet-scroll/);
+ assert.ok(node('#modal-backdrop').classList.contains('person-profile-backdrop'));
+ assert.ok(node('#modal-content').classList.contains('person-profile-dialog'));
+ api.showPersonStats(state.controlledId,'stats');
  assert.match(node('#modal-content').innerHTML,/Complete character statistics/);
- assert.match(node('#modal-content').innerHTML,/Relationship strengths/);
- assert.match(node('#modal-content').innerHTML,/Family chronicle/);
  assert.match(node('#modal-content').innerHTML,/Emotional sensitivity/);
+ assert.match(node('#modal-content').innerHTML,/Education debt/);
+ api.showPersonStats(state.controlledId,'family');
+ assert.match(node('#modal-content').innerHTML,/Family connections/);
+ api.showPersonStats(state.controlledId,'actions');
+ assert.match(node('#modal-content').innerHTML,/Grow family/);
+ api.showPersonStats(state.controlledId,'history');
+ assert.match(node('#modal-content').innerHTML,/Family chronicle/);
+ // Clicks within the panel stay open; taps on the dark backdrop close it.
+ node('#modal-backdrop').handlers.click({target:{id:'modal-content'}});
+ assert.equal(node('#modal-backdrop').classList.contains('hidden'),false);
+ node('#modal-backdrop').handlers.click({target:{id:'modal-backdrop'}});
+ assert.equal(node('#modal-backdrop').classList.contains('hidden'),true);
+ assert.equal(node('#modal-backdrop').classList.contains('person-profile-backdrop'),false);
+ api.showPersonStats(state.controlledId);
  node('#person-sheet-close').onclick();
+ assert.equal(node('#modal-backdrop').classList.contains('hidden'),true);
+ assert.match(css,/padding-top:max\(66px,calc\(env\(safe-area-inset-top,0px\) \+ 12px\)\)/);
+ assert.match(css,/\.person-sheet-screen\{[^}]*overflow:hidden/);
  // Hold on a real rendered canvas node: long press opens stats, tap selects.
  const scene=api.getScene(),cam=api.getCamera(),first=scene[0],canvas=node('#tree-canvas');
  assert.ok(first&&canvas.handlers?.pointerdown&&canvas.handlers?.pointerup);
@@ -52,7 +73,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  node('#modal-content').innerHTML='unchanged';
  canvas.handlers.pointerdown(evt(1));
  await new Promise(resolve=>setTimeout(resolve,575));
- assert.match(node('#modal-content').innerHTML,/Complete character statistics/);
+ assert.match(node('#modal-content').innerHTML,/Family overview/);
  canvas.handlers.pointerup(evt(1));
  node('#person-sheet-close').onclick();
  // Dragging must cancel the long-press action and never open a character sheet.
