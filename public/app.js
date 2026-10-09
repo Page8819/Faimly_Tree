@@ -99,8 +99,14 @@ function incomeFor(p){return LEGACY_CAREERS.income(p)}
 function yearlyEconomy(p){
  const a=age(p);if(a<18)return;
  LEGACY_CONSEQUENCES.annual(p,a,state.year);
- for(const message of LEGACY_EDUCATION.annual(p,a,state.year,rnd))addEvent(state.year,'education',full(p)+' '+message,[p.id]);
  const npc=p.id!==state.controlledId;
+ const untreated=p.medical?.conditions?.find(c=>c.status==='active'&&!c.treated&&c.stage>=2);
+ if(npc&&untreated&&chance(.33)){
+  const service=LEGACY_MEDICINE.catalog[untreated.id]?.care||'primary';
+  const r=LEGACY_MEDICINE.care(p,service,state.year,rnd);
+  if(r.ok)addEvent(state.year,'health',full(p)+': '+r.message,[p.id]);
+ }
+ for(const message of LEGACY_EDUCATION.annual(p,a,state.year,rnd))addEvent(state.year,'education',full(p)+' '+message,[p.id]);
  if(npc&&a>=18&&a<=38&&!p.schooling?.current&&chance(.065)){
   const programs=['ged','trade','cdl','culinary','it','emt','associate','bachelor','nursing','engineer','master','law','medicine'];
   const eligible=programs.filter(k=>LEGACY_EDUCATION.canEnroll(p,k,a).ok);
@@ -126,6 +132,16 @@ function simulateOneYear(){state.year++;
    const a=age(p);
    const cause=a<1?'Complications of infancy':a<35?pick(['Accidental injury','Severe infection']):a<65?pick(['Cardiovascular event','Accidental injury','Undiagnosed illness']):pick(['Cardiovascular event','Pneumonia','Age-related frailty']);
    die(p,cause);
+  }
+  if(alive(p)&&p.id===state.controlledId&&state.mode==='individual'&&!state.pendingChoice){
+   const newCondition=result.events.find(e=>e.message.startsWith('Developed symptoms')||e.message.startsWith('Diagnosed with'));
+   if(newCondition){
+    state.pendingChoice={personId:p.id,kind:'medical',year:state.year,event:{
+     tag:'MEDICAL DECISION',title:'Your health needs attention.',
+     text:newCondition.message+' How should '+p.first+' respond?',
+     options:[['primary','Visit a doctor','Arrange primary care and an examination.'],['specialist','See a specialist','Seek specialist assessment for more serious symptoms.'],['emergency','Get emergency treatment','Choose more intensive care at a higher cost.'],['wait','Wait and monitor','Postpone formal care; the illness may progress.']]
+    }};
+   }
   }
  }
  for(const p of start){if(!alive(p))continue;const bonds=Object.values(p.bonds||{});const support=bonds.length?bonds.reduce((t,v)=>t+v,0)/bonds.length:50;LEGACY_HUMAN.annual(p,{age:age(p),year:state.year,rnd,financialPressure:Math.min(90,Math.max(0,-p.wealth/700)),support});yearlyEconomy(p);if(age(p)>19&&age(p)<65)maybeRelocate(p);
@@ -190,21 +206,27 @@ function maybeLifeChoice(){
 }
 function showLifeChoice(){
  const pending=state.pendingChoice;if(!pending)return;
- const p=get(pending.personId),choice=pending.kind==='event'?pending.event:LIFE_CHOICES[pending.kind];
+ const p=get(pending.personId),choice=['event','medical'].includes(pending.kind)?pending.event:LIFE_CHOICES[pending.kind];
  if(!p||!choice){state.pendingChoice=null;saveSoon();return;}
  showModal('<div class="eyebrow">LIFE DECISION / '+esc(choice.tag)+'</div><div class="life-choice-meta">'+esc(full(p))+' · Age '+age(p)+' · '+state.year+'</div><h2>'+esc(choice.title)+'</h2><p>'+esc(choice.text)+'</p><div class="life-choice-options">'+choice.options.map((o,i)=>'<button class="life-choice-option" data-life-option="'+esc(o[0])+'"><span class="life-choice-number">0'+(i+1)+'</span><span><strong>'+esc(o[1])+'</strong><small>'+esc(o[2])+'</small></span><span class="life-choice-arrow">→</span></button>').join('')+'</div><p class="modal-note">Your decision changes this person’s life and is remembered in the family chronicle.</p>');
  $$('.life-choice-option').forEach(b=>b.onclick=()=>resolveLifeChoice(b.dataset.lifeOption));
 }
 function resolveLifeChoice(action){
  const pending=state.pendingChoice;if(!pending)return;
- const p=get(pending.personId),template=pending.kind==='event'?pending.event:LIFE_CHOICES[pending.kind];
+ const p=get(pending.personId),template=['event','medical'].includes(pending.kind)?pending.event:LIFE_CHOICES[pending.kind];
  if(!p||!template)return;
  const option=template.options.find(o=>o[0]===action);if(!option)return;
  const fortune=state.realism==='casual'?.82:state.realism==='strict'?.52:.67;
  const changeMoney=amount=>{p.wealth=Math.max(-100000,Math.round(p.wealth+amount));};
  const kin=related(p).filter(alive).filter(q=>q.id!==p.id).sort((a,b)=>a.wealth-b.wealth);
  let result='',others=[];
- if(pending.kind==='event'){
+ if(pending.kind==='medical'){
+  if(action==='wait')result='Chose to monitor symptoms without an immediate medical appointment.';
+  else{
+   const visit=LEGACY_MEDICINE.care(p,action,state.year,rnd);
+   result=visit.message;
+  }
+ }else if(pending.kind==='event'){
   const story=LEGACY_EVENTS.resolve({p,people:state.people,year:state.year,event:pending.event,option:action,rnd,cities});
   if(!story)return;
   result=story.result;others=story.others||[];
@@ -543,6 +565,7 @@ function advance(years,continuation=false){
   for(let i=0;i<years;i++){
    simulateOneYear();passed++;
    if(state.pendingSuccession){state.remainingYears=years-passed;break;}
+   if(state.pendingChoice){state.remainingYears=years-passed;break;}
    if(maybeLifeChoice()){state.remainingYears=years-passed;break;}
    if(state.nextId>MAX_PEOPLE)break;
   }
