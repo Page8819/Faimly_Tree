@@ -473,3 +473,53 @@
  .calendar-primary{font-size:17px}
  .calendar-steps button{min-height:30px}
 }
+
+
+/* Living Timeline: year-progress strip stays compact above the dynasty tree. */
+.app.immersive-tree{grid-template-rows:auto auto auto auto auto minmax(0,1fr) auto}
+.living-timeline{
+ display:flex;flex-direction:column;gap:7px;padding:8px 22px 9px;
+ background:#102324;border-bottom:1px solid #344c46;min-height:76px;
+}
+.living-timeline-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.living-timeline-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px;min-width:0}
+.living-timeline-heading strong{color:#ecd2a4;font-size:12px;letter-spacing:.3px}
+.living-timeline-heading span{color:#9ab5ac;font-size:10px}
+.living-timeline-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.timeline-speed-label{color:#b4c8b8;font-size:10px;white-space:nowrap}
+#timeline-speed{appearance:auto;min-height:30px;border-radius:9px;border:1px solid #507368;background:#1d3c38;color:#f4e6cf;padding:4px 9px;font-size:11px}
+.timeline-play{min-width:87px;min-height:31px;border-radius:9px;border:1px solid #dbb87c;background:#d8b57a;color:#18312a;font-size:11px;font-weight:800;padding:5px 12px;white-space:nowrap}
+.timeline-play:hover{background:#efd29a}
+.living-timeline-track{height:18px;min-height:18px;position:relative;overflow:hidden;background:#19332f;border:1px solid #46635a;border-radius:7px}
+.living-timeline-fill{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,#386a5e,#caad75);border-right:2px solid #eed99d;transition:width .22s linear;pointer-events:none}
+.living-timeline-months{position:absolute;inset:0;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));align-items:center}
+.living-timeline-months span{font-size:8px;text-align:center;color:#9fb6ab;font-weight:700;border-right:1px solid #43645b66;text-shadow:0 1px 1px #0d2225;line-height:15px}
+.living-timeline-months span:last-child{border-right:none}
+.living-timeline-months span.active{color:#ffe4a6;font-weight:900}
+.living-timeline-months span.passed{color:#f5e6c7}
+@media(max-width:680px){
+ .app.immersive-tree{grid-template-rows:auto auto auto auto auto minmax(0,1fr) auto}
+ .living-timeline{min-height:74px;padding:6px 10px;gap:7px}
+ .living-timeline-top{gap:4px}
+ .living-timeline-heading{gap:3px;flex-direction:column}
+ .living-timeline-heading strong{font-size:11px}
+ .living-timeline-heading span{font-size:9px;max-width:165px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .living-timeline-actions{gap:5px}
+ .timeline-speed-label{font-size:9px}
+ #timeline-speed{min-height:29px;max-width:105px;font-size:10px;padding:3px 4px}
+ .timeline-play{min-width:72px;min-height:29px;padding:4px 6px;font-size:10px}
+ .living-timeline-track{height:18px}
+ .living-timeline-months span{font-size:7px}
+}
+@media(max-width:380px){
+ .living-timeline{padding:5px 8px}
+ .living-timeline-heading span{max-width:100px}
+ .timeline-speed-label{display:none}
+ #timeline-speed{max-width:87px;font-size:9px}
+ .timeline-play{min-width:64px}
+}
+@media(max-height:520px){
+ .living-timeline{min-height:52px;padding:3px 10px;gap:4px}
+ .living-timeline-heading span{display:none}
+ .living-timeline-track{height:15px;min-height:15px}
+}
