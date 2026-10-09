@@ -30,6 +30,7 @@ jobs:
           node --check public/living-impact.js
           node --check public/attention.js
           node --check public/calendar.js
+          node --check public/timeline.js
           node --test tests/*.test.cjs
       - name: Confirm static entry points
         run: |
