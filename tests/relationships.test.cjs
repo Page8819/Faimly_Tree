@@ -30,7 +30,7 @@ test('childhood support adapts to actual parenting and remains persistent',()=>{
 });
 test('autonomous support never spends controlled-person funds',()=>{
  const donor=make('donor',100000),recipient=make('recipient',-4000);
- R.affect(donor,recipient,30,2026);const state={people:{donor,recipient},controlledId:'donor'};
+ R.affect(donor,recipient,30,2026);donor.social.recipient.trust=85;recipient.social.donor.trust=85;const state={people:{donor,recipient},controlledId:'donor'};
  const before=donor.wealth;R.annual(state,2027,()=>0);
  assert.equal(donor.wealth,before);
  state.controlledId='recipient';R.annual(state,2028,()=>0);
