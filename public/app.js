@@ -70,7 +70,7 @@ function birth(a,b,adopted=false){
 }
 function newWorld(name='Alex Morgan',sex='male',startYear=2026){
  const clean=String(name).trim().replace(/\s+/g,' ');let spl=clean.split(' ');const first=spl.shift()||'Alex',last=spl.join(' ')||'Morgan';
- state={version:VERSION,year:startYear,mode:'individual',realism:'realistic',founderId:null,selectedId:null,controlledId:null,rootId:null,nextId:1,nextEvent:1,rng:hash(clean+startYear),familyName:last,people:{},events:[],createdAt:new Date().toISOString()};
+ state={version:VERSION,year:startYear,mode:'individual',realism:'realistic',founderId:null,selectedId:null,controlledId:null,rootId:null,nextId:1,nextEvent:1,rng:hash(clean+startYear),familyName:last,people:{},events:[],pendingChoice:null,remainingYears:0,createdAt:new Date().toISOString()};
  let father=createPerson({first:'Robert',last,sex:'male',birthYear:startYear-53,gen:0,education:2,jobLevel:3,wealth:80000});
  let mother=createPerson({first:'Elaine',last,sex:'female',birthYear:startYear-51,gen:0,education:3,jobLevel:3,wealth:92000});
  father.partnerId=mother.id;mother.partnerId=father.id;father.partnerSince=mother.partnerSince=startYear-27;bond(father,mother,30);
@@ -96,7 +96,7 @@ function meetPartner(p){if(p.partnerId||!alive(p)||age(p)<18||state.nextId>MAX_P
 }
 function maybeRelocate(p){if(chance(.012)){const from=p.city;let next=pick(cities);if(next!==from){p.city=next;addEvent(state.year,'move',`${full(p)} moved from ${from} to ${next}.`,[p.id]);const q=partner(p);if(q&&chance(.75))q.city=next;}}}
 function incomeFor(p){const base=[0,25000,41000,61000,92000,135000,185000];return base[Math.max(0,Math.min(p.jobLevel,6))]*(.85+p.education*.07)}
-function yearlyEconomy(p){const a=age(p);if(a<18)return;if(a<28&&p.education<3&&chance(.13)){p.education++;if(chance(.3))addEvent(state.year,'education',`${full(p)} completed additional education.`,[p.id]);}
+function yearlyEconomy(p){const a=age(p);if(a<18)return;if(p.retired){p.wealth+=Math.round(Math.max(11000,incomeFor(p)*.2)-17000+rnd()*2500);return;}if(a<28&&p.education<3&&chance(.13)){p.education++;if(chance(.3))addEvent(state.year,'education',`${full(p)} completed additional education.`,[p.id]);}
  if(a>=67){p.wealth+=Math.round(incomeFor(p)*.16-19000+rnd()*4000);return}
  if(chance(.048)&&p.jobLevel<6){p.jobLevel++;addEvent(state.year,'career',`${full(p)} advanced their career.`,[p.id]);}
  const income=incomeFor(p),living=income*(.66+rnd()*.17)+int(2600,6200);p.wealth+=Math.round(income-living);
@@ -134,6 +134,81 @@ function simulateOneYear(){state.year++;
  }
 }
 function related(p){let ids=[...p.parentIds,...p.adoptiveParentIds,...kids(p).map(v=>v.id),...(p.partnerId?[p.partnerId]:[]),...p.formerPartners];return [...new Set(ids)].map(get).filter(Boolean)}
+
+const LIFE_CHOICES={
+ launch:{tag:'COMING OF AGE',title:'Your future begins today.',text:'Adulthood brings opportunity—and responsibility. How will you start building your own life?',options:[['college','Go to college','Borrow or spend $14,000 to study and gain qualifications.'],['trade','Learn a trade','Invest $2,500 in practical skills and begin earning.'],['work','Start working','Earn right away and begin building savings.']]},
+ direction:{tag:'CROSSROADS',title:'Where does your ambition lead?',text:'An opportunity could change your career and finances. Do you take a risk or protect what you have?',options:[['promotion','Pursue a promotion','A better career is possible, but not guaranteed.'],['business','Start a business','Risk $7,500 on a new venture with an uncertain payoff.'],['stable','Choose stability','Focus on saving money and protecting your personal life.']]},
+ family:{tag:'FAMILY MATTERS',title:'Family needs your attention.',text:'Other people rely on you, but you also have a life of your own. Where will your effort go?',options:[['financial','Help financially','Share up to $2,500 with a relative who needs it.'],['quality','Spend time together','Strengthen an important family relationship.'],['independent','Focus on yourself','Preserve your resources and pursue independence.']]},
+ midlife:{tag:'A NEW CHAPTER',title:'It is time to reconsider your path.',text:'Life has changed. What kind of future will you prepare for?',options:[['retrain','Retrain for a new career','Pay $4,000 to develop skills that may pay off.'],['invest','Build a financial cushion','Make a long-term investment with an uncertain result.'],['balance','Prioritize your wellbeing','Ease the pressure and rebuild family connections.']]},
+ retirement:{tag:'LATER YEARS',title:'What will the next chapter look like?',text:'Work, security, and family may mean different things now. You get to decide how to spend these years.',options:[['retire','Retire from work','Leave full-time work and rely on a modest retirement income.'],['continue','Keep working','Continue building savings while you can.'],['mentor','Invest in the next generation','Spend time and resources helping younger relatives.']]},
+ relationship:{tag:'HEART & HOME',title:'An unexpected connection.',text:'Someone new could change the shape of your future family. How open are you to a relationship?',options:[['meet','Explore the connection','Take a chance on a possible new partner.'],['friends','Build friendships','Enjoy new connections without a commitment.'],['solo','Stay independent','Put your own goals first for now.']]}
+};
+function maybeLifeChoice(){
+ if(state.pendingChoice)return false;
+ const p=get(state.mode==='individual'?state.controlledId:state.selectedId);
+ if(!p||!alive(p))return false;
+ const a=age(p),last=Number(p.lastLifeChoiceYear)||0;
+ if(a<18||a>75||state.year-last<4)return false;
+ let kind=({18:'launch',25:'direction',35:'family',50:'midlife',65:'retirement'})[a]||null;
+ if(!kind&&chance(state.realism==='casual'?.12:state.realism==='strict'?.08:.10)){
+  const available=[];
+  if(a>=19&&a<=58)available.push('direction');
+  if(a>=22&&a<=70&&related(p).some(alive))available.push('family');
+  if(a>=18&&a<=54&&!p.partnerId)available.push('relationship');
+  if(a>=38&&a<=63)available.push('midlife');
+  if(available.length)kind=pick(available);
+ }
+ if(!kind)return false;
+ state.pendingChoice={personId:p.id,kind,year:state.year};
+ return true;
+}
+function showLifeChoice(){
+ const pending=state.pendingChoice;if(!pending)return;
+ const p=get(pending.personId),choice=LIFE_CHOICES[pending.kind];
+ if(!p||!choice){state.pendingChoice=null;saveSoon();return;}
+ showModal('<div class="eyebrow">LIFE DECISION / '+esc(choice.tag)+'</div><div class="life-choice-meta">'+esc(full(p))+' · Age '+age(p)+' · '+state.year+'</div><h2>'+esc(choice.title)+'</h2><p>'+esc(choice.text)+'</p><div class="life-choice-options">'+choice.options.map((o,i)=>'<button class="life-choice-option" data-life-option="'+esc(o[0])+'"><span class="life-choice-number">0'+(i+1)+'</span><span><strong>'+esc(o[1])+'</strong><small>'+esc(o[2])+'</small></span><span class="life-choice-arrow">→</span></button>').join('')+'</div><p class="modal-note">Your decision changes this person’s life and is remembered in the family chronicle.</p>');
+ $('.life-choice-option').forEach(b=>b.onclick=()=>resolveLifeChoice(b.dataset.lifeOption));
+}
+function resolveLifeChoice(action){
+ const pending=state.pendingChoice;if(!pending)return;
+ const p=get(pending.personId),template=LIFE_CHOICES[pending.kind];
+ if(!p||!template)return;
+ const option=template.options.find(o=>o[0]===action);if(!option)return;
+ const fortune=state.realism==='casual'?.82:state.realism==='strict'?.52:.67;
+ const changeMoney=amount=>{p.wealth=Math.max(-100000,Math.round(p.wealth+amount));};
+ const kin=related(p).filter(alive).filter(q=>q.id!==p.id).sort((a,b)=>a.wealth-b.wealth);
+ let result='',others=[];
+ switch(action){
+ case 'college':p.education=Math.min(4,p.education+2);changeMoney(-14000);result='Completed advanced education, taking on $14,000 in costs.';break;
+ case 'trade':p.education=Math.min(4,p.education+1);p.jobLevel=Math.max(p.jobLevel,2);changeMoney(-2500);result='Learned a skilled trade and entered the workforce.';break;
+ case 'work':p.jobLevel=Math.max(p.jobLevel,1);changeMoney(4500);result='Started working immediately and saved $4,500.';break;
+ case 'promotion':if(p.jobLevel<6&&chance(fortune)){p.jobLevel++;changeMoney(3000);result='Earned a promotion and a $3,000 bonus.';}else{result='Pursued a promotion, but the opportunity did not work out.';}break;
+ case 'business':changeMoney(-7500);if(chance(Math.max(.2,fortune-.12+(p.traits.openness-50)/300))){const gains=int(12000,28000);changeMoney(gains);result='The new venture succeeded, returning '+money(gains)+' after the initial investment.';}else result='The new venture struggled and the $7,500 startup investment was lost.';break;
+ case 'stable':changeMoney(3500);result='Chose a steadier path and accumulated $3,500 in savings.';break;
+ case 'financial':if(kin.length){const q=kin[0],amount=Math.max(0,Math.min(2500,p.wealth));changeMoney(-amount);q.wealth+=amount;bond(p,q,14);others=[q.id];result=amount?'Shared '+money(amount)+' with '+full(q)+', strengthening their relationship.':'Had little money to spare, but reached out and strengthened a family bond.';}else result='Tried to help family, but no living close relatives were available.';break;
+ case 'quality':if(kin.length){const q=kin[0];bond(p,q,22);others=[q.id];result='Spent meaningful time with '+full(q)+' and became closer.';}else result='Made room for future friendships and connections.';break;
+ case 'independent':changeMoney(1800);if(kin.length){bond(p,kin[0],-5);others=[kin[0].id];}result='Prioritized personal goals and built an additional $1,800 in savings.';break;
+ case 'retrain':changeMoney(-4000);p.education=Math.min(4,p.education+1);if(chance(fortune)&&p.jobLevel<6)p.jobLevel++;result='Invested $4,000 in retraining and gained new skills.';break;
+ case 'invest':changeMoney(-3500);{const returns=chance(fortune)?int(4500,10000):int(0,2000);changeMoney(returns);result=returns>=3500?'A long-term investment paid off, returning '+money(returns)+'.':'The investment underperformed, returning only '+money(returns)+'.';}break;
+ case 'balance':if(kin.length){bond(p,kin[0],18);others=[kin[0].id];}result='Chose a less pressured life and focused on relationships.';break;
+ case 'retire':p.retired=true;result='Retired from full-time work. Future income will be lower, with more time for family.';break;
+ case 'continue':p.retired=false;changeMoney(4500);result='Continued working and added $4,500 to retirement savings.';break;
+ case 'mentor':{const q=kin.find(v=>age(v)<age(p));if(q){const amount=Math.max(0,Math.min(1500,p.wealth));changeMoney(-amount);q.wealth+=amount;bond(p,q,20);others=[q.id];result='Passed on experience and '+money(amount)+' to '+full(q)+'.';}else result='Shared a lifetime of experience with the community.';}break;
+ case 'meet':if(!p.partnerId&&chance(fortune)){const q=meetPartner(p);if(q){others=[q.id];result='A new relationship began with '+full(q)+'.';}else result='No new partnership formed.';}else result='The connection did not turn into a lasting relationship.';break;
+ case 'friends':if(kin.length){bond(p,kin[0],10);others=[kin[0].id];}result='Built meaningful connections while remaining single.';break;
+ case 'solo':changeMoney(1200);result='Stayed independent and saved $1,200 toward personal goals.';break;
+ default:return;
+ }
+ p.lastLifeChoiceYear=state.year;
+ state.pendingChoice=null;
+ addEvent(state.year,'choice',full(p)+' chose: '+option[1]+'. '+result,[p.id,...others]);
+ needsFit=true;render();saveSoon();
+ const left=Math.max(0,Math.min(100,Number(state.remainingYears)||0));
+ showModal('<div class="eyebrow">THE CONSEQUENCES / '+state.year+'</div><h2>'+esc(option[1])+'</h2><p>'+esc(result)+'</p><p class="modal-note">Saved to your family chronicle. Personal wealth: '+money(p.wealth)+' · Education level: '+p.education+'.</p><div class="modal-actions">'+(left?'<button class="primary" id="life-continue">Continue '+left+' year'+(left===1?'':'s')+' →</button>':'')+'<button class="secondary" id="life-finish">'+(left?'Stop here':'Return to family')+'</button></div>');
+ if(left)$('#life-continue').onclick=()=>{const years=left;state.remainingYears=0;closeModal();advance(years,true);};
+ $('#life-finish').onclick=()=>{state.remainingYears=0;saveSoon();closeModal();};
+}
+
 function decide(action){
  const p=get(state.selectedId);if(!p||!alive(p))return;
  if(state.mode==='individual'&&p.id!==state.controlledId){toast('Take control of this person before making life decisions.');return;}
@@ -277,7 +352,7 @@ function renderPeople(){const search=$('#people-search').value.toLocaleLowerCase
  $$('#people-list [data-person]').forEach(b=>b.addEventListener('click',()=>selectPerson(b.dataset.person)));
 }
 function renderHistory(){const events=state.events.slice().sort((a,b)=>b.year-a.year||b.id-a.id).slice(0,450);let oldYear=null;
- $('#history-list').innerHTML=events.map(e=>{let head='';if(e.year!==oldYear){oldYear=e.year;head=`<div class="history-year">${e.year}</div>`}const name=e.personIds.map(get).filter(Boolean)[0];return `${head}<div class="history-item"><span class="history-marker">${({birth:'✦',death:'◆',relationship:'♥',adoption:'✦',move:'⌁',career:'↑',education:'◈',inheritance:'◇',family:'♡',milestone:'✧'}[e.type]||'●')}</span><button data-event-person="${name?.id||''}"><div class="history-name">${esc(e.type.toUpperCase())}</div>${esc(e.message)}</button></div>`}).join('')+(state.events.length>450?'<div class="empty-note">Showing the latest 450 events. All events remain in the saved game and exported backup.</div>':'');
+ $('#history-list').innerHTML=events.map(e=>{let head='';if(e.year!==oldYear){oldYear=e.year;head=`<div class="history-year">${e.year}</div>`}const name=e.personIds.map(get).filter(Boolean)[0];return `${head}<div class="history-item"><span class="history-marker">${({birth:'✦',death:'◆',relationship:'♥',adoption:'✦',move:'⌁',career:'↑',education:'◈',inheritance:'◇',family:'♡',milestone:'✧',choice:'⚖'}[e.type]||'●')}</span><button data-event-person="${name?.id||''}"><div class="history-name">${esc(e.type.toUpperCase())}</div>${esc(e.message)}</button></div>`}).join('')+(state.events.length>450?'<div class="empty-note">Showing the latest 450 events. All events remain in the saved game and exported backup.</div>':'');
  $$('#history-list [data-event-person]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.eventPerson)selectPerson(b.dataset.eventPerson)}));
 }
 function setTab(tab){currentTab=tab;$$('.tab').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);b.setAttribute('aria-selected',String(b.dataset.tab===tab))});
@@ -285,10 +360,25 @@ function setTab(tab){currentTab=tab;$$('.tab').forEach(b=>{b.classList.toggle('a
  if(tab==='tree'){needsFit=true;requestAnimationFrame(()=>layoutGraph())}if(tab==='people')renderPeople();if(tab==='history')renderHistory();
 }
 function render(){if(!state)return;renderStats();renderProfile();if(currentTab==='tree')requestAnimationFrame(layoutGraph);if(currentTab==='people')renderPeople();if(currentTab==='history')renderHistory();}
-function advance(years){if(busy)return;if(state.nextId>MAX_PEOPLE){toast('2,000-person prototype limit. Export your family; larger simulations are planned.');return}busy=true;let before=state.events.length,peeps=persons().length,passed=0;
- try{for(let i=0;i<years;i++){simulateOneYear();passed++;if(state.nextId>MAX_PEOPLE)break;}needsFit=true;$('#profile-panel').scrollTop=0;render();saveSoon();toast(passed<years?'2,000-person limit reached. Export your save to preserve this dynasty.':`${passed} year${passed===1?'':'s'} passed · ${persons().length-peeps} new lives · ${state.events.length-before} events`)}catch(e){console.error(e);toast('Simulation error: please export a backup.')}finally{busy=false}}
+function advance(years,continuation=false){
+ if(busy||state.pendingChoice)return;
+ if(state.nextId>MAX_PEOPLE){toast('2,000-person prototype limit. Export your family; larger simulations are planned.');return}
+ if(!continuation)state.remainingYears=0;
+ busy=true;const before=state.events.length,peeps=persons().length;let passed=0;
+ try{
+  for(let i=0;i<years;i++){
+   simulateOneYear();passed++;
+   if(maybeLifeChoice()){state.remainingYears=years-passed;break;}
+   if(state.nextId>MAX_PEOPLE)break;
+  }
+  needsFit=true;$('#profile-panel').scrollTop=0;render();saveSoon();
+  if(state.pendingChoice)showLifeChoice();
+  else toast(passed<years?'2,000-person limit reached. Export your save to preserve this dynasty.':passed+' year'+(passed===1?'':'s')+' passed · '+(persons().length-peeps)+' new lives · '+(state.events.length-before)+' events');
+ }catch(e){console.error(e);toast('Simulation error: please export a backup.')}
+ finally{busy=false}
+}
 function showModal(html){$('#modal-content').innerHTML=html;$('#modal-backdrop').classList.remove('hidden')}
-function closeModal(){$('#modal-backdrop').classList.add('hidden')}
+function closeModal(){if(state?.pendingChoice)return;$('#modal-backdrop').classList.add('hidden')}
 function newWorldModal(){showModal(`<div class="eyebrow">THE BEGINNING OF EVERYTHING</div><h2>Begin a new legacy</h2><p>Start with one person, two parents, and a sibling. Every life that follows grows from this history.</p><label for="new-name">Founding character</label><input maxlength="50" id="new-name" class="field-input" value="Alex Morgan" placeholder="First and last name" /><label for="new-sex">Founding character</label><select id="new-sex" class="field-input"><option value="male">Male</option><option value="female">Female</option></select><label for="new-year">Starting year</label><input id="new-year" class="field-input" type="number" min="1800" max="2200" value="2026" /><div class="modal-warning">Creating a new world replaces the current active game. Export your family history first if you want to keep it.</div><div class="modal-actions"><button class="secondary" id="cancel-modal">Cancel</button><button class="primary" id="create-world">Create family →</button></div>`);
  $('#cancel-modal').onclick=closeModal;$('#create-world').onclick=()=>{let v=$('#new-name').value.trim(),y=Number($('#new-year').value);if(!v||!Number.isInteger(y)||y<1800||y>2200){toast('Enter a name and a starting year from 1800 to 2200.');return}newWorld(v,$('#new-sex').value,y);closeModal();saveSoon();setTab('tree');render();toast('A new family story has begun.');};}
 function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
@@ -298,7 +388,7 @@ function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</di
  $('#new-from-menu').onclick=newWorldModal;$('#close-menu').onclick=closeModal;}
 function exportGame(){const data=JSON.stringify(state,null,2);const a=document.createElement('a');const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.href=url;a.download=`LEGACY_${state.familyName}_${state.year}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Exported family history backup.');}
 function validImport(g){return !!(g&&g.version===VERSION&&Number.isInteger(g.year)&&g.year>=1800&&g.year<=3000&&g.people&&typeof g.people==='object'&&!Array.isArray(g.people)&&Array.isArray(g.events)&&g.selectedId&&g.people[g.selectedId]&&Object.keys(g.people).length<=100000&&g.events.length<=300000)}
-async function handleImport(e){const file=e.target.files?.[0];if(!file)return;try{const g=JSON.parse(await file.text());if(!validImport(g))throw Error('Invalid or incompatible save');state=g;state.controlledId=state.controlledId||state.founderId||state.selectedId;closeModal();needsFit=true;currentTab='tree';setTab('tree');render();await saveGame();toast(`Restored the ${state.familyName} family.`)}catch(err){toast('Could not import this save file.')}e.target.value='';}
+async function handleImport(e){const file=e.target.files?.[0];if(!file)return;try{const g=JSON.parse(await file.text());if(!validImport(g))throw Error('Invalid or incompatible save');state=g;state.controlledId=state.controlledId||state.founderId||state.selectedId;closeModal();needsFit=true;currentTab='tree';setTab('tree');render();if(state.pendingChoice)showLifeChoice();await saveGame();toast(`Restored the ${state.familyName} family.`)}catch(err){toast('Could not import this save file.')}e.target.value='';}
 function openDB(){return new Promise(resolve=>{try{if(!('indexedDB' in window))return resolve(null);const r=indexedDB.open('legacy-family-save',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('worlds'))r.result.createObjectStore('worlds')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>resolve(null)}catch(e){resolve(null)}})}
 function storageGet(){try{return JSON.parse(localStorage.getItem('legacy-snapshot-v1')||'null')}catch(e){return null}}
 function storageSet(){try{localStorage.setItem('legacy-snapshot-v1',JSON.stringify(state));return true}catch(e){return false}}
@@ -330,8 +420,8 @@ function bind(){
  const ro=new ResizeObserver(()=>{if(currentTab==='tree'&&state){if(needsFit)fitScene();drawGraph()}});ro.observe($('#canvas-wrap'));
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveGame()});
 }
-async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
+async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
-window.LEGACY_TEST={getState:()=>state,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport};
+window.LEGACY_TEST={getState:()=>state,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice};
 })();
