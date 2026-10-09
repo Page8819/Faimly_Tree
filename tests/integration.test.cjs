@@ -24,7 +24,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
   requestAnimationFrame(f){f()},Intl,Date,Math,Blob,URL
  };
  sandbox.window=sandbox;
- for(const name of ['careers.js','education.js','medicine.js','human.js','economy.js','consequences.js','events.js','succession.js','relationships.js','living-context.js','living-psychology.js','living-decisions.js','living-storylines.js','living-impact.js','app.js']){
+ for(const name of ['careers.js','education.js','medicine.js','human.js','economy.js','consequences.js','events.js','succession.js','relationships.js','living-context.js','living-psychology.js','living-decisions.js','living-storylines.js','living-impact.js','attention.js','app.js']){
   const source=fs.readFileSync(path.join(__dirname,'../public',name),'utf8');
   vm.runInNewContext(source,sandbox,{filename:name,timeout:2000});
  }
@@ -34,6 +34,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.ok(api,'integration hooks installed');
  let state=api.getState();assert.equal(state.year,2026);
  assert.equal(Object.keys(state.people).length,4);
+ assert.deepEqual(sandbox.LEGACY_ATTENTION.unread(state),[],'founding historical events should not trigger alerts');
  assert.ok(state.people[state.controlledId].needs?.physical>0);
  assert.equal(state.people[state.controlledId].finance?.cash,4500);
  assert.ok(Array.isArray(state.people[state.controlledId].medical?.conditions));
@@ -183,5 +184,34 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.match(node('#modal-content').innerHTML,/An employment crossroads/);
  api.showStoryDetails(lead.id,state.storylines.at(-1).id);
  assert.match(node('#modal-content').innerHTML,/Loss of work/);
+
+ // New attention system: alerts appear only after events, remain visible, and open the right person.
+ const Attention=sandbox.LEGACY_ATTENTION;
+ Attention.dismissAll(state);
+ api.addEvent(state.year,'health','Mia was diagnosed with pneumonia.',[lead.id]);
+ api.render();
+ assert.equal(Attention.unread(state).length,1);
+ assert.match(node('#attention-name').textContent,/Check on|See what happened/);
+ assert.equal(node('#attention-banner').classList.contains('hidden'),false);
+ assert.equal(node('#attention-inbox').classList.contains('hidden'),false);
+ assert.equal(node('#attention-count').textContent,'1');
+ node('#attention-go').onclick();
+ assert.equal(Attention.unread(state).length,0,'checking the named person clears their reminder');
+ assert.match(node('#modal-content').innerHTML,/Family chronicle/);
+ assert.match(node('#modal-content').innerHTML,/pneumonia/);
+ assert.equal(node('#attention-banner').classList.contains('hidden'),true);
+ const relative=Object.values(state.people).find(p=>p.id!==lead.id&&p.inFamily);
+ api.addEvent(state.year,'death',relative.first+' died.',[relative.id]);
+ api.render();
+ node('#attention-inbox').onclick();
+ assert.match(node('#modal-content').innerHTML,/Who needs attention/);
+ assert.match(node('#modal-content').innerHTML,/Family loss/);
+ assert.ok(node('#modal-content').classList.contains('attention-inbox-dialog'));
+ node('#attention-close').onclick();
+ assert.equal(node('#modal-content').classList.contains('attention-inbox-dialog'),false);
+ node('#attention-dismiss').onclick();
+ assert.equal(Attention.unread(state).length,0);
+ assert.equal(node('#attention-inbox').classList.contains('hidden'),true);
+
  assert.deepEqual(errors,[],'simulation should not log errors');
 });
