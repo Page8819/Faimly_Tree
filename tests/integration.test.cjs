@@ -24,7 +24,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
   requestAnimationFrame(f){f()},Intl,Date,Math,Blob,URL
  };
  sandbox.window=sandbox;
- for(const name of ['human.js','consequences.js','events.js','succession.js','app.js']){
+ for(const name of ['human.js','economy.js','consequences.js','events.js','succession.js','app.js']){
   const source=fs.readFileSync(path.join(__dirname,'../public',name),'utf8');
   vm.runInNewContext(source,sandbox,{filename:name,timeout:2000});
  }
@@ -35,6 +35,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  let state=api.getState();assert.equal(state.year,2026);
  assert.equal(Object.keys(state.people).length,4);
  assert.ok(state.people[state.controlledId].needs?.physical>0);
+ assert.equal(state.people[state.controlledId].finance?.cash,4500);
  // The immersive view hides the permanent sidebar and uses a character sheet.
  const css=fs.readFileSync(path.join(__dirname,'../public/styles.css'),'utf8');
  assert.match(css,/\.app\.immersive-tree\{grid-template-rows/);
@@ -52,10 +53,15 @@ test('game boots, offers a choice, advances time and hands off the family',async
  api.showPersonStats(state.controlledId,'stats',1);
  assert.match(node('#modal-content').innerHTML,/Career, learning &amp; finances/);
  assert.match(node('#modal-content').innerHTML,/Education debt/);
+ api.showPersonStats(state.controlledId,'stats',2);
+ assert.match(node('#modal-content').innerHTML,/Household economy/);
+ assert.match(node('#modal-content').innerHTML,/Mortgage/);
  api.showPersonStats(state.controlledId,'family');
  assert.match(node('#modal-content').innerHTML,/Family connections/);
  api.showPersonStats(state.controlledId,'actions');
  assert.match(node('#modal-content').innerHTML,/Grow family/);
+ assert.match(node('#modal-content').innerHTML,/Buy a home/);
+ assert.match(node('#modal-content').innerHTML,/Adjust budget/);
  api.showPersonStats(state.controlledId,'history');
  assert.match(node('#modal-content').innerHTML,/Family chronicle/);
  // Clicks within the panel stay open; taps on the dark backdrop close it.
