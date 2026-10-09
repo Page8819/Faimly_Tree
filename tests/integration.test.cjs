@@ -220,6 +220,9 @@ test('game boots, offers a choice, advances time and hands off the family',async
  node('#attention-close').onclick();
  assert.equal(node('#modal-content').classList.contains('attention-inbox-dialog'),false);
  node('#attention-dismiss').onclick();
+ assert.equal(Attention.unread(state).length,9,'top banner dismisses one reminder without discarding the others');
+ api.showAttentionInbox();
+ node('#attention-clear').onclick();
  assert.equal(Attention.unread(state).length,0);
  assert.equal(node('#attention-inbox').classList.contains('hidden'),true);
 
