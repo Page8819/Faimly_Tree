@@ -64,7 +64,7 @@ function birth(a,b,adopted=false){
  let familyParent=a.inFamily?a:(b?.inFamily?b:a),last=familyParent.last;
  const gen=Math.max(a.gen,b?.gen??a.gen)+1;
  const p=createPerson({first,last,sex,birthYear:state.year,gen,parentIds:adopted?[]:b?[a.id,b.id]:[a.id],adoptiveParentIds:adopted?(b?[a.id,b.id]:[a.id]):[],city:a.city,inFamily:!!(a.inFamily||b?.inFamily),education:0,jobLevel:0,wealth:0});
- bond(p,a,30);if(b)bond(p,b,30);
+ LEGACY_CONSEQUENCES.childStart(p,[a,b]);bond(p,a,30);if(b)bond(p,b,30);
  if(!adopted&&b){p.eyeTint=chance(.47)?a.eyeTint:b.eyeTint;p.hairTint=chance(.47)?a.hairTint:b.hairTint}
  addEvent(state.year,adopted?'adoption':'birth',adopted?`${full(p)} joined the family through adoption.`:`${full(p)} was born to ${full(a)}${b?' and '+full(b):''}.`,[p.id,a.id,b?.id]);return p;
 }
@@ -96,9 +96,9 @@ function meetPartner(p){if(p.partnerId||!alive(p)||age(p)<18||state.nextId>MAX_P
 }
 function maybeRelocate(p){if(chance(.012)){const from=p.city;let next=pick(cities);if(next!==from){p.city=next;addEvent(state.year,'move',`${full(p)} moved from ${from} to ${next}.`,[p.id]);const q=partner(p);if(q&&chance(.75))q.city=next;}}}
 function incomeFor(p){const base=[0,25000,41000,61000,92000,135000,185000];return base[Math.max(0,Math.min(p.jobLevel,6))]*(.85+p.education*.07)}
-function yearlyEconomy(p){const a=age(p);if(a<18)return;if(p.retired){p.wealth+=Math.round(Math.max(11000,incomeFor(p)*.2)-17000+rnd()*2500);return;}if(a<28&&p.education<3&&chance(.13)){p.education++;if(chance(.3))addEvent(state.year,'education',`${full(p)} completed additional education.`,[p.id]);}
+function yearlyEconomy(p){const a=age(p);if(a<18)return;LEGACY_CONSEQUENCES.annual(p,a,state.year);if(p.retired){p.wealth+=Math.round(Math.max(11000,incomeFor(p)*.2)-17000+rnd()*2500);return;}if(a<28&&p.education<3&&chance(.13)){p.education++;if(chance(.3))addEvent(state.year,'education',`${full(p)} completed additional education.`,[p.id]);}
  if(a>=67){p.wealth+=Math.round(incomeFor(p)*.16-19000+rnd()*4000);return}
- if(chance(.048)&&p.jobLevel<6){p.jobLevel++;addEvent(state.year,'career',`${full(p)} advanced their career.`,[p.id]);}
+ if(chance(LEGACY_CONSEQUENCES.careerOdds(p))&&p.jobLevel<6){p.jobLevel++;addEvent(state.year,'career',`${full(p)} advanced their career.`,[p.id]);}
  const income=incomeFor(p),living=income*(.66+rnd()*.17)+int(2600,6200);p.wealth+=Math.round(income-living);
  if(p.wealth < -100000)p.wealth=-100000;
 }
@@ -199,6 +199,7 @@ function resolveLifeChoice(action){
  case 'solo':changeMoney(1200);result='Stayed independent and saved $1,200 toward personal goals.';break;
  default:return;
  }
+ LEGACY_CONSEQUENCES.apply(p,action,state.year,result);
  p.lastLifeChoiceYear=state.year;
  state.pendingChoice=null;
  addEvent(state.year,'choice',full(p)+' chose: '+option[1]+'. '+result,[p.id,...others]);
@@ -244,6 +245,7 @@ function decide(action){
   rel.sort((a,b)=>a.wealth-b.wealth);const q=rel[0];p.wealth-=1000;q.wealth+=1000;bond(p,q,12);
   addEvent(state.year,'family',`${full(p)} supported ${full(q)} with $1,000.`,[p.id,q.id]);toast(`${q.first} received family support.`);
  }
+ LEGACY_CONSEQUENCES.apply(p,action,state.year);
  saveSoon();render();
 }
 function showToast(msg){toast(msg)}
@@ -271,7 +273,8 @@ function renderProfile(){const p=get(state.selectedId);if(!p)return;
  <div class="profile-card"><div class="portrait" style="${gradient(p)}"><span>${esc(initials(p))}</span></div><div><div class="profile-name">${esc(full(p))}</div><div class="profile-meta">${ages(p)} · Generation ${p.gen+1}<br>${esc(p.city)}</div><span class="pill ${alive(p)?'':'dead'}">${alive(p)?'● LIVING':'◆ REMEMBERED'}</span></div></div>
  <p class="profile-summary">${summary}</p></div>
  <div class="profile-stats"><div class="profile-stat"><small>Occupation</small><strong>${esc(job)}</strong></div><div class="profile-stat"><small>Personal wealth</small><strong>${money(p.wealth)}</strong></div><div class="profile-stat"><small>Education</small><strong>${esc(education)}</strong></div><div class="profile-stat"><small>Children</small><strong>${children.length} ${children.length===1?'child':'children'}</strong></div></div>
- <div class="panel-block"><div class="block-title">Family connections <span class="block-sub">${children.length+parents.length+adopters.length+(q?1:0)} direct ties</span></div><div class="relation-row">${distinctRel(parents,'parent')}${distinctRel(adopters,'adoptive parent')}${q?distinctRel([q],'partner'):''}${distinctRel(children,'child')}${!parents.length&&!adopters.length&&!q&&!children.length?'<span class="empty-note">No direct relatives recorded yet.</span>':''}</div></div>
+ <div class="panel-block"><div class="block-title">Life path & legacy</div><div class="identity">${esc(LEGACY_CONSEQUENCES.describe(p))}</div></div>
+  <div class="panel-block"><div class="block-title">Family connections <span class="block-sub">${children.length+parents.length+adopters.length+(q?1:0)} direct ties</span></div><div class="relation-row">${distinctRel(parents,'parent')}${distinctRel(adopters,'adoptive parent')}${q?distinctRel([q],'partner'):''}${distinctRel(children,'child')}${!parents.length&&!adopters.length&&!q&&!children.length?'<span class="empty-note">No direct relatives recorded yet.</span>':''}</div></div>
  <div class="panel-block"><div class="block-title">Life decisions <span class="block-sub">${state.mode==='individual'?'individual':'family'} control</span></div>${state.mode==='individual'&&p.id!==state.controlledId&&alive(p)?'<button class="action special" id="take-control" style="width:100%;margin-bottom:9px">▶ Live as '+esc(p.first)+'</button>':''}<div class="actions-grid">
  ${[['partner','♥ Find partner'],['child','✦ Grow family'],['career','↑ Career'],['educate','◈ Education'],['move','⌁ Relocate'],['support','♡ Support kin']].map(([a,l])=>`<button class="action ${a==='child'?'special':''}" data-action="${a}" ${canAct?'':'disabled'}>${l}</button>`).join('')}
  </div>${!alive(p)?'<div class="identity">This life has ended. Their history remains part of the family.</div>':state.mode==='individual'?'<div class="identity">Individual Control · Direct the currently selected life.</div>':'<div class="identity">Family Control · Direct anyone in the tree.</div>'}</div>
