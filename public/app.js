@@ -43,7 +43,7 @@ function createPerson({first,last,sex,birthYear,gen=0,parentIds=[],adoptiveParen
  traits:makeTraits(parentIds),bonds:{},eyeTint:pick(['hazel','brown','brown','blue','green']),hairTint:pick(['brown','black','blond','auburn']),memory:[]};
  LEGACY_HUMAN.ensure(p,state.year-birthYear);LEGACY_ECONOMY.ensure(p);LEGACY_MEDICINE.ensure(p);LEGACY_EDUCATION.ensure(p);LEGACY_CAREERS.ensure(p);LEGACY_LIVING_PSYCHOLOGY.ensure(p);state.people[p.id]=p;return p;
 }
-function addEvent(year,type,message,personIds=[]){state.events.push({id:state.nextEvent++,year,type,message,personIds:[...new Set(personIds.filter(Boolean))]})}
+function addEvent(year,type,message,personIds=[]){const event={id:state.nextEvent++,year,type,message,personIds:[...new Set(personIds.filter(Boolean))]};state.events.push(event);LEGACY_ATTENTION.add(state,event);return event;}
 function bond(a,b,value){LEGACY_RELATIONSHIPS.affect(a,b,value,state.year,'family interaction')}
 function linkCouple(a,b,type='partner',withEvent=true){
  if(a.partnerId||b.partnerId||a.id===b.id)return false;
@@ -70,7 +70,7 @@ function birth(a,b,adopted=false){
 }
 function newWorld(name='Alex Morgan',sex='male',startYear=2026){
  const clean=String(name).trim().replace(/\s+/g,' ');let spl=clean.split(' ');const first=spl.shift()||'Alex',last=spl.join(' ')||'Morgan';
- state={version:VERSION,year:startYear,mode:'individual',realism:'realistic',founderId:null,selectedId:null,controlledId:null,rootId:null,nextId:1,nextEvent:1,rng:hash(clean+startYear),familyName:last,people:{},events:[],pendingChoice:null,pendingSuccession:null,successionLog:[],remainingYears:0,createdAt:new Date().toISOString()};
+ state={version:VERSION,year:startYear,mode:'individual',realism:'realistic',founderId:null,selectedId:null,controlledId:null,rootId:null,nextId:1,nextEvent:1,rng:hash(clean+startYear),familyName:last,people:{},events:[],attention:{enabled:false,items:[]},pendingChoice:null,pendingSuccession:null,successionLog:[],remainingYears:0,createdAt:new Date().toISOString()};
  let father=createPerson({first:'Robert',last,sex:'male',birthYear:startYear-53,gen:0,education:2,jobLevel:3,wealth:80000});
  let mother=createPerson({first:'Elaine',last,sex:'female',birthYear:startYear-51,gen:0,education:3,jobLevel:3,wealth:92000});
  father.partnerId=mother.id;mother.partnerId=father.id;father.partnerSince=mother.partnerSince=startYear-27;bond(father,mother,30);
@@ -82,6 +82,7 @@ function newWorld(name='Alex Morgan',sex='male',startYear=2026){
  addEvent(startYear-24,'birth',`${full(founder)} was born.`,[founder.id,father.id,mother.id]);
  addEvent(startYear-21,'birth',`${full(sister)} was born.`,[sister.id,father.id,mother.id]);
  addEvent(startYear,'milestone',`The ${last} family's story begins.`,[founder.id]);
+ LEGACY_ATTENTION.ensure(state).enabled=true;
  currentTab='tree';scope='focus';needsFit=true;return state;
 }
 function annualDeathProbability(a){if(a<1)return .004;if(a<15)return .0002;if(a<30)return .0007;if(a<40)return .0013;if(a<50)return .0027;if(a<60)return .006;if(a<70)return .014;if(a<80)return .037;if(a<90)return .09;return Math.min(.5,.17+(a-90)*.012)}
@@ -395,7 +396,9 @@ function renderProfile(){const p=get(state.selectedId);if(!p)return;
 function showPersonStats(id,tab='overview',page=0){
  if(state.pendingChoice||state.pendingSuccession)return;
  const p=get(id);if(!p)return;
+ const reviewed=LEGACY_ATTENTION.readPerson(state,id);
  selectPerson(id);
+ if(reviewed){renderAttention();if(currentTab==='tree')drawGraph();if(currentTab==='people')renderPeople();saveSoon();}
  const allowed=['overview','health','education','career','stats','family','stories','actions','history'];
  if(!allowed.includes(tab))tab='overview';
  const parents=(p.parentIds||[]).map(get).filter(Boolean);
@@ -606,12 +609,20 @@ function drawGraph(){if(!state)return;const {w,h}=setCanvasSize();ctx.clearRect(
  for(const e of sceneEdges){const {a,b,kind}=e;ctx.beginPath();ctx.lineWidth=kind==='partner'?1.3:1.8;ctx.strokeStyle=kind==='partner'?'#a4845288':kind==='adopt'?'#80adbc95':'#648b7b99';ctx.setLineDash(kind==='parent'?[]:kind==='adopt'?[4,4]:[3,6]);
   if(kind==='partner'){ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y)}else{ctx.moveTo(a.x,a.y+44);const cy=(a.y+b.y)/2;ctx.bezierCurveTo(a.x,cy,b.x,cy,b.x,b.y-44)}ctx.stroke();ctx.setLineDash([]);
  }
+ const attentionCounts=LEGACY_ATTENTION.counts(state);
  const activeCount=new Map();for(const story of state.storylines||[])if(story.status==='active')for(const id of story.participants||[])activeCount.set(id,(activeCount.get(id)||0)+1);
  for(const n of scene){const p=n.p,selected=p.id===state.selectedId,dead=!alive(p),x=n.x-n.w/2,y=n.y-n.h/2;
   ctx.shadowBlur=selected?17:0;ctx.shadowColor=selected?'#bd996d9f':'transparent';roundPath(ctx,x,y,n.w,n.h,12);ctx.fillStyle=dead?'#142126':'#1c3032';ctx.fill();ctx.lineWidth=selected?2.5:1;ctx.strokeStyle=selected?'#e0bd7f':dead?'#3a4848':'#4e6e66';ctx.stroke();ctx.shadowBlur=0;
   const hu=hue(p.id);ctx.beginPath();ctx.fillStyle=dead?'#566463':`hsl(${hu},34%,39%)`;ctx.arc(n.x,y+25,16,0,Math.PI*2);ctx.fill();ctx.fillStyle=dead?'#c0cdbe':'#f8ebd9';ctx.font='600 13px Georgia,serif';ctx.textAlign='center';ctx.fillText(p.first.charAt(0)+p.last.charAt(0),n.x,y+29);
   ctx.fillStyle=dead?'#a3aaa5':'#f1f1e6';ctx.font='600 11px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText(ellipsis(p.first+' '+p.last,19),n.x,y+54,116);
   ctx.fillStyle=dead?'#788986':'#9bb3a8';ctx.font='10px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText(p.birthYear+' – '+(p.deathYear||'●'),n.x,y+70,115);
+  const attention=attentionCounts.get(p.id);
+  if(attention){
+   ctx.beginPath();ctx.fillStyle=attention.priority>=4?'#e9a092':'#e8c582';
+   ctx.arc(x+10,y+12,9,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#162525';ctx.font='800 11px -apple-system,BlinkMacSystemFont,sans-serif';
+   ctx.fillText('!',x+10,y+16);
+  }
   if(activeCount.has(p.id)){
    ctx.beginPath();ctx.fillStyle='#dcb36b';ctx.arc(x+n.w-7,y+12,9,0,Math.PI*2);ctx.fill();
    ctx.fillStyle='#182927';ctx.font='700 10px -apple-system,BlinkMacSystemFont,sans-serif';
@@ -622,7 +633,8 @@ function drawGraph(){if(!state)return;const {w,h}=setCanvasSize();ctx.clearRect(
 function selectPerson(id){if(!get(id))return;state.selectedId=id;$('#profile-panel').scrollTop=0;renderProfile();if(scope==='focus'){needsFit=true;layoutGraph()}else drawGraph();if(currentTab==='people')renderPeople();saveSoon();}
 function renderPeople(){const search=$('#people-search').value.toLocaleLowerCase().trim();const list=persons().slice().sort((a,b)=>Number(alive(b))-Number(alive(a))||b.birthYear-a.birthYear);
  const filtered=list.filter(p=>(full(p)+' '+p.city+' '+(jobs[Math.min(p.jobLevel,5)]||'')).toLowerCase().includes(search));
- $('#people-list').innerHTML=filtered.slice(0,400).map(p=>`<button class="person-item ${p.id===state.selectedId?'selected':''}" data-person="${p.id}"><span class="person-avatar" style="${gradient(p)}">${esc(initials(p))}</span><span class="person-item-main"><span class="person-item-name">${esc(full(p))}</span><span class="person-item-info">${esc(p.city)} · ${ages(p)} · Gen ${p.gen+1}</span></span><span class="person-item-side">${alive(p)?'LIVING':'REMEMBERED'}</span></button>`).join('')+(filtered.length>400?`<div class="empty-note">Showing 400 of ${filtered.length} results. Refine your search.</div>`:'')||'<div class="empty-note">No matching family members.</div>';
+ const attention=LEGACY_ATTENTION.counts(state);
+ $('#people-list').innerHTML=filtered.slice(0,400).map(p=>`<button class="person-item ${p.id===state.selectedId?'selected':''}" data-person="${p.id}"><span class="person-avatar" style="${gradient(p)}">${esc(initials(p))}</span><span class="person-item-main"><span class="person-item-name">${esc(full(p))}</span><span class="person-item-info">${esc(p.city)} · ${ages(p)} · Gen ${p.gen+1}</span></span><span class="person-item-side">${attention.has(p.id)?`<span class="person-attention-tag">● ${attention.get(p.id).count} update${attention.get(p.id).count===1?'':'s'}</span>`:alive(p)?'LIVING':'REMEMBERED'}</span></button>`).join('')+(filtered.length>400?`<div class="empty-note">Showing 400 of ${filtered.length} results. Refine your search.</div>`:'')||'<div class="empty-note">No matching family members.</div>';
  $$('#people-list [data-person]').forEach(b=>b.addEventListener('click',()=>showPersonStats(b.dataset.person)));
 }
 function renderHistory(){const events=state.events.slice().sort((a,b)=>b.year-a.year||b.id-a.id).slice(0,450);let oldYear=null;
@@ -633,7 +645,7 @@ function setTab(tab){currentTab=tab;$('#app').classList.toggle('immersive-tree',
  $('#tree-view').classList.toggle('hidden',tab!=='tree');$('#people-view').classList.toggle('hidden',tab!=='people');$('#history-view').classList.toggle('hidden',tab!=='history');
  if(tab==='tree'){needsFit=true;requestAnimationFrame(()=>layoutGraph())}if(tab==='people')renderPeople();if(tab==='history')renderHistory();
 }
-function render(){if(!state)return;renderStats();renderProfile();if(currentTab==='tree')requestAnimationFrame(layoutGraph);if(currentTab==='people')renderPeople();if(currentTab==='history')renderHistory();}
+function render(){if(!state)return;renderStats();renderProfile();renderAttention();if(currentTab==='tree')requestAnimationFrame(layoutGraph);if(currentTab==='people')renderPeople();if(currentTab==='history')renderHistory();}
 function advance(years,continuation=false){
  if(busy||state.pendingChoice||state.pendingSuccession)return;
  if(state.nextId>MAX_PEOPLE){toast('2,000-person prototype limit. Export your family; larger simulations are planned.');return}
@@ -769,6 +781,7 @@ function bind(){
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveGame()});
 }
 function upgradeOldSave(){
+ LEGACY_ATTENTION.ensure(state);
  LEGACY_LIVING_DECISIONS.ensure(state);LEGACY_STORYLINES.ensure(state);
  for(const p of persons()){
   LEGACY_HUMAN.ensure(p,age(p));LEGACY_ECONOMY.ensure(p);LEGACY_MEDICINE.ensure(p);
