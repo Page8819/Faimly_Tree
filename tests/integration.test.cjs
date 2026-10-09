@@ -9,7 +9,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
    classList:{add(){},remove(){},toggle(){}},
    getBoundingClientRect(){return {width:390,height:360,left:0,top:0}},
    getContext(){return ctx},
-   addEventListener(){},setAttribute(){},appendChild(){},remove(){},
+   addEventListener(type,callback){(this.handlers??={})[type]=callback},setPointerCapture(){},setAttribute(){},appendChild(){},remove(){},
    get clientWidth(){return 390}
   });return els.get(selector);
  }
@@ -34,6 +34,34 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.ok(api,'integration hooks installed');
  let state=api.getState();assert.equal(state.year,2026);
  assert.equal(Object.keys(state.people).length,4);
+ // The immersive view hides the permanent sidebar and uses a character sheet.
+ const css=fs.readFileSync(path.join(__dirname,'../public/styles.css'),'utf8');
+ assert.match(css,/\.app\.immersive-tree\{grid-template-rows/);
+ assert.match(css,/#profile-panel\{display:none!important\}/);
+ api.showPersonStats(state.controlledId);
+ assert.match(node('#modal-content').innerHTML,/Complete character statistics/);
+ assert.match(node('#modal-content').innerHTML,/Relationship strengths/);
+ assert.match(node('#modal-content').innerHTML,/Family chronicle/);
+ assert.match(node('#modal-content').innerHTML,/Emotional sensitivity/);
+ node('#person-sheet-close').onclick();
+ // Hold on a real rendered canvas node: long press opens stats, tap selects.
+ const scene=api.getScene(),cam=api.getCamera(),first=scene[0],canvas=node('#tree-canvas');
+ assert.ok(first&&canvas.handlers?.pointerdown&&canvas.handlers?.pointerup);
+ const position={clientX:cam.x+first.x*cam.scale,clientY:cam.y+first.y*cam.scale};
+ const evt=(pointerId)=>({pointerId,...position,preventDefault(){}});
+ node('#modal-content').innerHTML='unchanged';
+ canvas.handlers.pointerdown(evt(1));
+ await new Promise(resolve=>setTimeout(resolve,575));
+ assert.match(node('#modal-content').innerHTML,/Complete character statistics/);
+ canvas.handlers.pointerup(evt(1));
+ node('#person-sheet-close').onclick();
+ // Dragging must cancel the long-press action and never open a character sheet.
+ node('#modal-content').innerHTML='unchanged';
+ canvas.handlers.pointerdown(evt(2));
+ canvas.handlers.pointermove({pointerId:2,clientX:position.clientX+30,clientY:position.clientY+30});
+ await new Promise(resolve=>setTimeout(resolve,560));
+ assert.equal(node('#modal-content').innerHTML,'unchanged');
+ canvas.handlers.pointerup({pointerId:2,clientX:position.clientX+30,clientY:position.clientY+30});
  api.advance(1);
  state=api.getState();
  assert.equal(state.year,2027);
