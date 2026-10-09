@@ -70,21 +70,21 @@ test('trade work stops for modeled holidays but essential healthcare remains sta
  state.people.p.career.jobId='nurse';
  const nurse=C.schedule(state.people.p,state,{...jobs,nurse:{name:'Nurse',sector:'Healthcare',minAge:21}});
  assert.equal(nurse.scheduled,true,'essential healthcare remains staffed on observed holidays');
- state.calendar.date='2026-07-04';
+ state.calendar.date='2026-07-04';C.reanchor(state);
  const weekendNurse=C.schedule(state.people.p,state,{...jobs,nurse:{name:'Nurse',sector:'Healthcare',minAge:21}});
  assert.equal(weekendNurse.scheduled,false,'this nurse has Saturday off despite the hospital operating');
  assert.equal(nurse.hours,12);
- state.people.p.career.jobId='physician';state.calendar.date='2026-07-03';
+ state.people.p.career.jobId='physician';state.calendar.date='2026-07-03';C.reanchor(state);
  assert.equal(C.schedule(state.people.p,state,jobs).reason,'Holiday leave','clinic schedules differ from emergency shifts');
- state.people.p.career.jobId='teacher';state.calendar.date='2026-07-06';
+ state.people.p.career.jobId='teacher';state.calendar.date='2026-07-06';C.reanchor(state);
  assert.equal(C.schedule(state.people.p,state,jobs).reason,'Summer break');
 });
 test('actual location and working hour determine whether character is on shift',()=>{
  const state=make('2026-10-12');
  assert.equal(C.schedule(state.people.p,state,jobs).scheduled,false,'federal holiday');
- state.calendar.date='2026-10-13';
+ state.calendar.date='2026-10-13';C.reanchor(state);
  assert.equal(C.schedule(state.people.p,state,jobs).working,true);
- state.calendar.minutes=19*60;
+ state.calendar.minutes=19*60;C.reanchor(state);
  assert.equal(C.schedule(state.people.p,state,jobs).working,false);
 });
 test('old saves acquire valid dates without rewriting years, and day reports are bounded',()=>{
