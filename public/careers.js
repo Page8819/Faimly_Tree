@@ -28,7 +28,7 @@
  const q=(p,id)=>!jobs[id]?.requires?.length||jobs[id].requires.every(r=>p.schooling?.credentials?.includes(r));
  function ensure(p){
   if(!p.career||typeof p.career!=='object'){
-   const experience=Math.max(0,Math.min(20,Math.max(0,2026-p.birthYear-18)));
+   const experience=Math.max(0,Math.min(20,Math.max(0,(Number(p.jobLevel)||0)-1)*3));
    const level=Number(p.jobLevel)||0;
    p.career={jobId:level>=4?'store_manager':level===3?'supervisor':level===2?'office':level===1?'service':null,
     grade:level>=4?3:1,experience,tenure:0,performance:50,history:[],lastYear:null,lastApplication:null};
@@ -64,7 +64,7 @@
   if(!chk.ok)return {ok:false,message:chk.reason};
   if(c.lastApplication===year)return {ok:false,message:'Already applied for another occupation this year.'};
   c.lastApplication=year;
-  const job=jobs[id],qualified=p.schooling.credentials.length;
+  const job=jobs[id],qualified=p.schooling?.credentials?.length||0;
   const odds=Math.max(.33,Math.min(.93,.62+(qualified-2)*.035+(c.performance-50)*.003));
   if(rnd()>odds){
    c.history.push({year,event:'application declined',id});
