@@ -207,6 +207,16 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.match(node('#modal-content').innerHTML,/Who needs attention/);
  assert.match(node('#modal-content').innerHTML,/Family loss/);
  assert.ok(node('#modal-content').classList.contains('attention-inbox-dialog'));
+ // All reminders should be in one scrollable list, with no Prev / Next pages.
+ for(let i=1;i<=9;i++)api.addEvent(state.year+i,'health',relative.first+' was diagnosed with condition '+i+'.',[relative.id]);
+ api.showAttentionInbox();
+ const inboxHtml=node('#modal-content').innerHTML;
+ assert.match(inboxHtml,/aria-label="Unread family reminders — scroll to see more"/);
+ assert.match(inboxHtml,/condition 1/);
+ assert.match(inboxHtml,/condition 9/);
+ assert.match(inboxHtml,/10 unread updates/);
+ assert.doesNotMatch(inboxHtml,/id="attention-next"|id="attention-prev"|Page 1/);
+ assert.match(css,/\.attention-inbox-items\{[^}]*overflow-y:auto/);
  node('#attention-close').onclick();
  assert.equal(node('#modal-content').classList.contains('attention-inbox-dialog'),false);
  node('#attention-dismiss').onclick();
