@@ -71,6 +71,7 @@ function birth(a,b,adopted=false){
  addEvent(state.year,adopted?'adoption':'birth',adopted?`${full(p)} joined the family through adoption.`:`${full(p)} was born to ${full(a)}${b?' and '+full(b):''}.`,[p.id,a.id,b?.id]);return p;
 }
 function newWorld(name='Alex Morgan',sex='male',startYear=2026){
+ timelinePause();
  const clean=String(name).trim().replace(/\s+/g,' ');let spl=clean.split(' ');const first=spl.shift()||'Alex',last=spl.join(' ')||'Morgan';
  state={version:VERSION,year:startYear,calendar:{date:String(startYear)+'-01-01',minutes:9*60,daysElapsed:0,dailyJournal:[]},mode:'individual',realism:'realistic',founderId:null,selectedId:null,controlledId:null,rootId:null,nextId:1,nextEvent:1,rng:hash(clean+startYear),familyName:last,people:{},events:[],attention:{enabled:false,items:[]},pendingChoice:null,pendingSuccession:null,successionLog:[],remainingYears:0,createdAt:new Date().toISOString()};
  let father=createPerson({first:'Robert',last,sex:'male',birthYear:startYear-53,gen:0,education:2,jobLevel:3,wealth:80000});
@@ -417,12 +418,89 @@ function renderStats(){const all=persons(),living=all.filter(alive),family=all.f
  $$('.mode-toggle button').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.mode));
 }
 
+
+/* Simulation is explicitly started by the player; it never catches up in the background. */
+let timelineRunning=false,timelineInterval=null,timelineLastReal=0,timelineFractionMs=0,timelineLastSaved=0;
+function renderTimeline(){
+ if(!state)return;
+ const settings=LEGACY_TIMELINE.ensure(state);
+ const c=LEGACY_CALENDAR.ensure(state);
+ const date=LEGACY_CALENDAR.parse(c.date);
+ const yearDays=LEGACY_CALENDAR.leap(date.year)?366:365;
+ const dayMs=settings.speedMinutes*60000/yearDays;
+ const fraction=Math.max(0,Math.min(.999,timelineFractionMs/dayMs));
+ const percentage=Math.round(LEGACY_TIMELINE.progress(c.date,fraction)*10000)/100;
+ const progress=$('#timeline-track');
+ progress.setAttribute('aria-valuenow',String(Math.round(percentage)));
+ progress.setAttribute('aria-valuetext',Math.round(percentage)+' percent through '+date.year);
+ $('#timeline-fill').setAttribute('style','width:'+percentage+'%');
+ const months=LEGACY_TIMELINE.months(c.date);
+ $('#timeline-months').innerHTML=months.map(m=>'<span class="'+(m.active?'active':m.passed?'passed':'')+'">'+m.label+'</span>').join('');
+ $('#timeline-speed').value=String(settings.speedMinutes);
+ $('#timeline-play').textContent=timelineRunning?'Ⅱ Pause':'▶ Play';
+ $('#timeline-play').setAttribute('aria-label',timelineRunning?'Pause living timeline':'Play living timeline');
+ const secondsRemaining=LEGACY_TIMELINE.remaining(c.date,settings.speedMinutes);
+ $('#timeline-status').textContent=timelineRunning?
+  'Running · '+(secondsRemaining>=60?Math.ceil(secondsRemaining/60)+' min':Math.ceil(secondsRemaining)+' sec')+' to next year':
+  'Paused · manual time controls remain available';
+}
+function timelinePause(){
+ const wasRunning=timelineRunning;
+ timelineRunning=false;
+ if(timelineInterval!==null&&typeof clearInterval==='function')clearInterval(timelineInterval);
+ timelineInterval=null;timelineLastReal=0;timelineFractionMs=0;
+ if(state){renderTimeline();if(wasRunning)saveSoon();}
+ return wasRunning;
+}
+function timelineAdvance(elapsedMs){
+ if(!state||busy||state.pendingChoice||state.pendingSuccession)return 0;
+ if(typeof document!=='undefined'&&document.visibilityState==='hidden')return 0;
+ if(!$('#modal-backdrop').classList.contains('hidden'))return 0;
+ if(state.nextId>MAX_PEOPLE){timelinePause();return 0;}
+ const c=LEGACY_CALENDAR.ensure(state);
+ const settings=LEGACY_TIMELINE.ensure(state);
+ const step=LEGACY_TIMELINE.step({date:c.date,elapsedMs:Math.max(0,Math.min(1200,elapsedMs)),remainderMs:timelineFractionMs,
+  speedMinutes:settings.speedMinutes,maxDays:16});
+ timelineFractionMs=step.remainderMs;
+ if(step.days)advanceCalendar('day',step.days,true);
+ if(state.pendingChoice||state.pendingSuccession){timelinePause();return step.days;}
+ if(Date.now()-timelineLastSaved>5000){
+  timelineLastSaved=Date.now();saveGame();
+ }
+ renderTimeline();
+ return step.days;
+}
+function timelinePlay(){
+ if(timelineRunning)return timelinePause();
+ if(!state||busy||state.pendingChoice||state.pendingSuccession)return false;
+ if(typeof document!=='undefined'&&document.visibilityState==='hidden')return false;
+ if(!$('#modal-backdrop').classList.contains('hidden'))return false;
+ if(state.nextId>MAX_PEOPLE){toast('Prototype person limit reached.');return false;}
+ if(typeof setInterval!=='function')return false;
+ timelineRunning=true;timelineLastReal=Date.now();timelineLastSaved=Date.now();timelineFractionMs=0;
+ timelineInterval=setInterval(()=>{
+  if(!timelineRunning)return;
+  if(typeof document!=='undefined'&&document.visibilityState==='hidden'){timelinePause();return;}
+  const now=Date.now(),delta=Math.max(0,Math.min(1200,now-timelineLastReal));
+  timelineLastReal=now;
+  timelineAdvance(delta);
+ },200);
+ renderTimeline();return true;
+}
+function timelineSpeed(value){
+ if(!state)return;
+ LEGACY_TIMELINE.ensure(state).speedMinutes=LEGACY_TIMELINE.validSpeed(value);
+ timelineFractionMs=0;timelineLastReal=Date.now();
+ renderTimeline();saveSoon();
+}
+
 function calendarTime(minutes){
  const h=Math.floor(minutes/60),m=Math.round(minutes%60);
  return (h%12||12)+':'+String(m).padStart(2,'0')+(h<12?' AM':' PM');
 }
 function renderCalendar(){
  const c=LEGACY_CALENDAR.ensure(state),parsed=LEGACY_CALENDAR.parse(c.date);
+ renderTimeline();
  const p=get(state.selectedId)||get(state.controlledId);
  const summary=p?LEGACY_CALENDAR.schedule(p,state,LEGACY_CAREERS.jobs):null;
  const count=LEGACY_CALENDAR.dayOfYear(parsed.year,parsed.month,parsed.day);
@@ -477,7 +555,8 @@ function calendarDayLog(){
   if(p.birthDate.slice(5)===c.date.slice(5))addEvent(state.year,'birthday',full(p)+' celebrated a birthday.',[p.id]);
  }
 }
-function advanceCalendar(unit,amount=1){
+function advanceCalendar(unit,amount=1,quiet=false){
+ if(!quiet)timelinePause();
  if(busy||state.pendingChoice||state.pendingSuccession)return;
  if(state.nextId>MAX_PEOPLE){toast('2,000-person prototype limit reached.');return;}
  const c=LEGACY_CALENDAR.ensure(state);
@@ -502,7 +581,7 @@ function advanceCalendar(unit,amount=1){
   needsFit=false;render();saveSoon();
   if(state.pendingSuccession)showSuccession();
   else if(state.pendingChoice)showLifeChoice();
-  else toast(elapsed===1&&unit==='hour'?'1 hour passed · '+LEGACY_CALENDAR.dateLabel(c.date):elapsed+' calendar day'+(elapsed===1?'':'s')+' passed · '+LEGACY_CALENDAR.dateLabel(c.date));
+  else if(!quiet)toast(elapsed===1&&unit==='hour'?'1 hour passed · '+LEGACY_CALENDAR.dateLabel(c.date):elapsed+' calendar day'+(elapsed===1?'':'s')+' passed · '+LEGACY_CALENDAR.dateLabel(c.date));
  }catch(e){console.error(e);toast('Calendar error. The last saved game remains available.');}
  finally{busy=false;}
 }
@@ -791,6 +870,7 @@ function setTab(tab){currentTab=tab;$('#app').classList.toggle('immersive-tree',
 }
 function render(){if(!state)return;renderStats();renderProfile();renderAttention();if(currentTab==='tree')requestAnimationFrame(layoutGraph);if(currentTab==='people')renderPeople();if(currentTab==='history')renderHistory();}
 function advance(years,continuation=false){
+ timelinePause();
  if(busy||state.pendingChoice||state.pendingSuccession)return;
  LEGACY_CALENDAR.ensure(state);
  if(state.nextId>MAX_PEOPLE){toast('2,000-person prototype limit. Export your family; larger simulations are planned.');return}
@@ -815,7 +895,7 @@ function advance(years,continuation=false){
  }catch(e){console.error(e);toast('Simulation error: please export a backup.')}
  finally{busy=false}
 }
-function showModal(html){$('#modal-content').classList.remove('person-profile-dialog','living-decision-dialog','attention-inbox-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop','living-decision-backdrop','attention-inbox-backdrop');$('#modal-content').innerHTML=html;$('#modal-backdrop').classList.remove('hidden')}
+function showModal(html){timelinePause();$('#modal-content').classList.remove('person-profile-dialog','living-decision-dialog','attention-inbox-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop','living-decision-backdrop','attention-inbox-backdrop');$('#modal-content').innerHTML=html;$('#modal-backdrop').classList.remove('hidden')}
 function closeModal(){if(state?.pendingChoice||state?.pendingSuccession)return;$('#modal-backdrop').classList.add('hidden');$('#modal-content').classList.remove('person-profile-dialog','living-decision-dialog','attention-inbox-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop','living-decision-backdrop','attention-inbox-backdrop')}
 
 function showSuccession(){
@@ -868,6 +948,8 @@ function bind(){
  $('#advance-day').onclick=()=>advanceCalendar('day',1);
  $('#advance-month').onclick=()=>advanceCalendar('month',1);
  $('#calendar-detail').onclick=showCalendarDetails;
+ $('#timeline-play').onclick=()=>timelinePlay();
+ $('#timeline-speed').onchange=()=>timelineSpeed($('#timeline-speed').value);
  $('#zoom-in').onclick=()=>{camera.scale=Math.min(3,camera.scale*1.24);drawGraph()};
  $('#zoom-out').onclick=()=>{camera.scale=Math.max(.12,camera.scale/1.24);drawGraph()};
  $('#zoom-fit').onclick=()=>{fitScene();drawGraph()};
@@ -931,9 +1013,11 @@ function bind(){
  canvas.addEventListener('lostpointercapture',()=>{cancelHold();});
  canvas.addEventListener('wheel',e=>{e.preventDefault();const pt=getPoint(e),wx=(pt.x-camera.x)/camera.scale,wy=(pt.y-camera.y)/camera.scale;camera.scale=Math.max(.12,Math.min(3,camera.scale*(e.deltaY<0?1.1:.9)));camera.x=pt.x-wx*camera.scale;camera.y=pt.y-wy*camera.scale;drawGraph()},{passive:false});
  const ro=new ResizeObserver(()=>{if(currentTab==='tree'&&state){if(needsFit)fitScene();drawGraph()}});ro.observe($('#canvas-wrap'));
- document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveGame()});
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){timelinePause();saveGame()}});
+ if(typeof window.addEventListener==='function')window.addEventListener('pagehide',()=>{timelinePause();saveGame()});
 }
 function upgradeOldSave(){
+ LEGACY_TIMELINE.ensure(state);
  LEGACY_CALENDAR.ensure(state);
  LEGACY_ATTENTION.ensure(state);
  LEGACY_LIVING_DECISIONS.ensure(state);LEGACY_STORYLINES.ensure(state);
@@ -948,5 +1032,5 @@ function upgradeOldSave(){
 async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}upgradeOldSave();state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
-window.LEGACY_TEST={getState:()=>state,addEvent,advance,advanceCalendar,renderCalendar,showCalendarDetails,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera})};
+window.LEGACY_TEST={getState:()=>state,addEvent,advance,advanceCalendar,renderCalendar,showCalendarDetails,renderTimeline,timelinePlay,timelinePause,timelineAdvance,timelineSpeed,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera})};
 })();
