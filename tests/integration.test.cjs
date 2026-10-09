@@ -24,7 +24,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
   requestAnimationFrame(f){f()},Intl,Date,Math,Blob,URL
  };
  sandbox.window=sandbox;
- for(const name of ['human.js','economy.js','consequences.js','events.js','succession.js','app.js']){
+ for(const name of ['human.js','economy.js','consequences.js','events.js','succession.js','relationships.js','app.js']){
   const source=fs.readFileSync(path.join(__dirname,'../public',name),'utf8');
   vm.runInNewContext(source,sandbox,{filename:name,timeout:2000});
  }
@@ -58,6 +58,8 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.match(node('#modal-content').innerHTML,/Mortgage/);
  api.showPersonStats(state.controlledId,'family');
  assert.match(node('#modal-content').innerHTML,/Family connections/);
+ assert.match(node('#modal-content').innerHTML,/Trust/);
+ assert.match(node('#modal-content').innerHTML,/Conflict/);
  api.showPersonStats(state.controlledId,'actions');
  assert.match(node('#modal-content').innerHTML,/Grow family/);
  assert.match(node('#modal-content').innerHTML,/Buy a home/);
