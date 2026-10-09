@@ -244,6 +244,10 @@ function resolveLifeChoice(action){
  const p=get(pending.personId),template=['event','medical','living','followup'].includes(pending.kind)?pending.event:LIFE_CHOICES[pending.kind];
  if(!p||!template)return;
  const option=template.options.find(o=>o[0]===action);if(!option)return;
+ const impactful=['living','followup'].includes(pending.kind);
+ const targetId=pending.kind==='living'?pending.event?.targetId:
+  pending.kind==='followup'?state.storylines?.find(x=>x.id===pending.event?.storyId)?.targetId:null;
+ const beforeImpact=impactful?LEGACY_LIVING_IMPACT.snapshot(state,p,targetId):null;
  const fortune=state.realism==='casual'?.82:state.realism==='strict'?.52:.67;
  const changeMoney=amount=>{p.wealth=Math.max(-100000,Math.round(p.wealth+amount));};
  const kin=related(p).filter(alive).filter(q=>q.id!==p.id).sort((a,b)=>a.wealth-b.wealth);
@@ -294,7 +298,15 @@ function resolveLifeChoice(action){
  addEvent(state.year,'choice',full(p)+' chose: '+option[1]+'. '+result,[p.id,...others]);
  needsFit=true;render();saveSoon();
  const left=Math.max(0,Math.min(100,Number(state.remainingYears)||0));
- showModal('<div class="eyebrow">THE CONSEQUENCES / '+state.year+'</div><h2>'+esc(option[1])+'</h2><p>'+esc(result)+'</p><p class="modal-note">Saved to your family chronicle. Personal wealth: '+money(p.wealth)+' · Education level: '+p.education+'.</p><div class="modal-actions">'+(left?'<button class="primary" id="life-continue">Continue '+left+' year'+(left===1?'':'s')+' →</button>':'')+'<button class="secondary" id="life-finish">'+(left?'Stop here':'Return to family')+'</button></div>');
+ if(impactful){
+  const changes=LEGACY_LIVING_IMPACT.compare(beforeImpact,LEGACY_LIVING_IMPACT.snapshot(state,p,targetId)).slice(0,6);
+  const rows=changes.length?changes.map(v=>{
+   const format=n=>v.format==='money'?money(n):v.format==='hours'?n+' hr':String(n);
+   return '<div class="living-change"><small>'+esc(v.label)+'</small><strong>'+esc(format(v.before))+' → '+esc(format(v.after))+'</strong></div>';
+  }).join(''):'<p class="living-empty">No immediate numerical changes. The decision affects future opportunities or commitments.</p>';
+  showModal('<div class="living-outcome-sheet"><div class="eyebrow">YOUR DECISION · '+state.year+'</div><h2>'+esc(option[1])+'</h2><p>'+esc(result)+'</p><div class="living-changes">'+rows+'</div><p class="living-disclaimer">These are actual game-state changes. Long-term consequences will emerge as time advances.</p><div class="modal-actions">'+(left?'<button class="primary" id="life-continue">Continue '+left+' year'+(left===1?'':'s')+' →</button>':'')+'<button class="secondary" id="life-finish">'+(left?'Stop here':'Return to family')+'</button></div></div>');
+  $('#modal-content').classList.add('living-decision-dialog');$('#modal-backdrop').classList.add('living-decision-backdrop');
+ }else showModal('<div class="eyebrow">THE CONSEQUENCES / '+state.year+'</div><h2>'+esc(option[1])+'</h2><p>'+esc(result)+'</p><p class="modal-note">Saved to your family chronicle. Personal wealth: '+money(p.wealth)+' · Education level: '+p.education+'.</p><div class="modal-actions">'+(left?'<button class="primary" id="life-continue">Continue '+left+' year'+(left===1?'':'s')+' →</button>':'')+'<button class="secondary" id="life-finish">'+(left?'Stop here':'Return to family')+'</button></div>');
  if(left)$('#life-continue').onclick=()=>{const years=left;state.remainingYears=0;closeModal();advance(years,true);};
  $('#life-finish').onclick=()=>{state.remainingYears=0;saveSoon();closeModal();};
 }
@@ -613,8 +625,8 @@ function advance(years,continuation=false){
  }catch(e){console.error(e);toast('Simulation error: please export a backup.')}
  finally{busy=false}
 }
-function showModal(html){$('#modal-content').classList.remove('person-profile-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop');$('#modal-content').innerHTML=html;$('#modal-backdrop').classList.remove('hidden')}
-function closeModal(){if(state?.pendingChoice||state?.pendingSuccession)return;$('#modal-backdrop').classList.add('hidden');$('#modal-content').classList.remove('person-profile-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop')}
+function showModal(html){$('#modal-content').classList.remove('person-profile-dialog','living-decision-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop','living-decision-backdrop');$('#modal-content').innerHTML=html;$('#modal-backdrop').classList.remove('hidden')}
+function closeModal(){if(state?.pendingChoice||state?.pendingSuccession)return;$('#modal-backdrop').classList.add('hidden');$('#modal-content').classList.remove('person-profile-dialog','living-decision-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop','living-decision-backdrop')}
 
 function showSuccession(){
  const pending=state.pendingSuccession;if(!pending)return;
