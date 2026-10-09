@@ -210,10 +210,32 @@ function maybeLifeChoice(){
  state.pendingChoice={personId:p.id,kind,year:state.year};
  return true;
 }
+
+function showLivingDecision(){
+ const pending=state.pendingChoice,p=get(pending?.personId),event=pending?.event;
+ if(!p||!event)return;
+ const context=Object.entries(event.facts||{}).filter(([k,v])=>['string','number'].includes(typeof v)).slice(0,3);
+ const contextHtml=context.length?'<div class="living-facts">'+context.map(([key,value])=>'<div><small>'+esc(key.replace(/([A-Z])/g,' $1'))+'</small><strong>'+esc(typeof value==='number'&&(/savings|debt|mortgage|reserves/i).test(key)?money(value):value)+'</strong></div>').join('')+'</div>':'';
+ const options=event.options.map((o,i)=>{
+  let preview=null;
+  if(pending.kind==='living'){
+   p._gameAge=age(p);preview=LEGACY_LIVING_DECISIONS.preview(p,event,o[0],state.people,state.year);delete p._gameAge;
+  }
+  const known=preview?((preview.cashCost?'Upfront '+money(preview.cashCost):'No upfront charge')+(preview.hours?' · '+preview.hours+' hr/week':'')):'Long-term consequences may change';
+  return '<button class="living-option" data-life-option="'+esc(o[0])+'" '+(preview&&!preview.ok?'disabled':'')+'><span class="living-option-index">'+(i+1)+'</span><span class="living-option-copy"><strong>'+esc(o[1])+'</strong><small>'+esc(o[2])+'</small><em>'+esc(preview&&!preview.ok?preview.reason:known)+'</em></span><span class="living-option-arrow">→</span></button>';
+ }).join('');
+ showModal('<div class="living-choice-sheet"><div class="eyebrow">'+esc(event.tag||'LIVING DECISION')+' · '+state.year+'</div><div class="living-character">'+esc(full(p))+' · Age '+age(p)+'</div><h2>'+esc(event.title)+'</h2><p class="living-summary">'+esc(event.text)+'</p>'+contextHtml+'<div class="living-option-stack">'+options+'</div><p class="living-disclaimer">Known costs are shown above. Other people and future outcomes cannot be guaranteed.</p></div>');
+ $('#modal-content').classList.add('living-decision-dialog');$('#modal-backdrop').classList.add('living-decision-backdrop');
+ $('#toast').classList.add('hidden');
+ $$('[data-life-option]').forEach(b=>b.onclick=()=>resolveLifeChoice(b.dataset.lifeOption));
+}
+
 function showLifeChoice(){
  const pending=state.pendingChoice;if(!pending)return;
  const p=get(pending.personId),choice=['event','medical','living','followup'].includes(pending.kind)?pending.event:LIFE_CHOICES[pending.kind];
  if(!p||!choice){state.pendingChoice=null;saveSoon();return;}
+ if(['living','followup'].includes(pending.kind)){showLivingDecision();return;}
+ $('#toast').classList.add('hidden');
  showModal('<div class="eyebrow">LIFE DECISION / '+esc(choice.tag)+'</div><div class="life-choice-meta">'+esc(full(p))+' · Age '+age(p)+' · '+state.year+'</div><h2>'+esc(choice.title)+'</h2><p>'+esc(choice.text)+'</p><div class="life-choice-options">'+choice.options.map((o,i)=>'<button class="life-choice-option" data-life-option="'+esc(o[0])+'"><span class="life-choice-number">0'+(i+1)+'</span><span><strong>'+esc(o[1])+'</strong><small>'+esc(o[2])+'</small></span><span class="life-choice-arrow">→</span></button>').join('')+'</div><p class="modal-note">Your decision changes this person’s life and is remembered in the family chronicle.</p>');
  $$('.life-choice-option').forEach(b=>b.onclick=()=>resolveLifeChoice(b.dataset.lifeOption));
 }
