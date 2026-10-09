@@ -8,7 +8,7 @@ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 const firstM=['Alexander','James','Oliver','Noah','Ethan','Liam','Elijah','Lucas','Henry','Daniel','Theodore','Benjamin','Leo','Marcus','Samuel','Nathan','Julian','Miles','Isaac','Andrew','Caleb','William','David','Adrian','Owen','Arthur','Gabriel','Felix','Jonah','Jack'];
 const firstF=['Emma','Ava','Mia','Sophia','Olivia','Charlotte','Isabella','Amelia','Ella','Grace','Evelyn','Harper','Abigail','Lily','Maya','Zoe','Nora','Chloe','Hannah','Ruby','Ivy','Luna','Hazel','Clara','Sadie','Eleanor','Alice','Stella','Aria','Lucy'];
 const lastNames=['Parker','Hayes','Bennett','Brooks','Rivera','Carter','Reed','Turner','Hughes','Morgan','Coleman','Foster','Mitchell','Ellis','Taylor','Harris','Sanders','Young','Price','Campbell','Bailey','Bell','Watson','Ross','Cooper','Wood'];
-const cities=['New York','Boston','Philadelphia','Chicago','Denver','Atlanta','Seattle','Austin','Portland','San Francisco','Nashville','Minneapolis','Raleigh','San Diego'];
+const cities=Object.keys(LEGACY_CALENDAR.LOCATIONS);
 const jobs=['Student','Service worker','Skilled worker','Professional','Senior professional','Executive'];
 const personalities=['Curious','Thoughtful','Ambitious','Practical','Sociable','Independent','Patient','Sensitive','Adventurous','Methodical'];
 const VERSION=1;
@@ -22,7 +22,9 @@ function pick(a){return a[Math.floor(rnd()*a.length)]}
 function chance(p){return rnd()<p}
 function int(a,b){return Math.floor(rnd()*(b-a+1))+a}
 function id(){return 'p'+(state.nextId++)}
-function age(p){return state.year-p.birthYear}
+function age(p){const birthday=(p.birthDate||String(p.birthYear)+'-01-01').slice(5);
+ const today=state.calendar?.date?.slice(5)||'01-01';return state.year-p.birthYear-(today<birthday?1:0);
+}
 function alive(p){return !p.deathYear}
 function persons(){return Object.values(state.people)}
 function get(id){return state.people[id]||null}
@@ -37,13 +39,13 @@ function initials(p){return (p.first?.[0]||'?')+(p.last?.[0]||'')}
 function hue(id){let n=Number(String(id).replace(/\D/g,''))||1;return (154+n*43)%360}
 function gradient(p){let h=hue(p.id);return `--c1:hsl(${h},29%,38%);--c2:hsl(${(h+40)%360},27%,18%)`}
 function makeTraits(parentIds){let base={};for(let k of ['openness','conscientiousness','extraversion','agreeableness','emotionality']){const ps=parentIds.map(get).filter(Boolean);let m=ps.length?ps.reduce((v,p)=>v+p.traits[k],0)/ps.length:50;base[k]=Math.max(5,Math.min(95,Math.round(50+(m-50)*.43+int(-29,29))))}return base}
-function createPerson({first,last,sex,birthYear,gen=0,parentIds=[],adoptiveParentIds=[],inFamily=true,city='New York',education,jobLevel,wealth}){
- const p={id:id(),first,last,sex,birthYear,deathYear:null,gen,parentIds:[...parentIds],adoptiveParentIds:[...adoptiveParentIds],inFamily,city,
+function createPerson({first,last,sex,birthYear,birthDate,gen=0,parentIds=[],adoptiveParentIds=[],inFamily=true,city='New York',education,jobLevel,wealth}){
+ const p={id:id(),first,last,sex,birthYear,birthDate:birthDate||String(birthYear)+'-01-01',deathYear:null,gen,parentIds:[...parentIds],adoptiveParentIds:[...adoptiveParentIds],inFamily,city,
  partnerId:null,partnerSince:null,formerPartners:[],education:education??(birthYear<=state.year-25?int(1,3):0),jobLevel:jobLevel??(birthYear<=state.year-20?int(1,3):0),wealth:wealth??int(300,6500),
  traits:makeTraits(parentIds),bonds:{},eyeTint:pick(['hazel','brown','brown','blue','green']),hairTint:pick(['brown','black','blond','auburn']),memory:[]};
  LEGACY_HUMAN.ensure(p,state.year-birthYear);LEGACY_ECONOMY.ensure(p);LEGACY_MEDICINE.ensure(p);LEGACY_EDUCATION.ensure(p);LEGACY_CAREERS.ensure(p);LEGACY_LIVING_PSYCHOLOGY.ensure(p);state.people[p.id]=p;return p;
 }
-function addEvent(year,type,message,personIds=[]){const event={id:state.nextEvent++,year,type,message,personIds:[...new Set(personIds.filter(Boolean))]};state.events.push(event);LEGACY_ATTENTION.add(state,event);return event;}
+function addEvent(year,type,message,personIds=[]){const event={id:state.nextEvent++,year,date:year===state.year?(state.calendar?.date||String(year)+'-01-01'):String(year)+'-01-01',type,message,personIds:[...new Set(personIds.filter(Boolean))]};state.events.push(event);LEGACY_ATTENTION.add(state,event);return event;}
 function bond(a,b,value){LEGACY_RELATIONSHIPS.affect(a,b,value,state.year,'family interaction')}
 function linkCouple(a,b,type='partner',withEvent=true){
  if(a.partnerId||b.partnerId||a.id===b.id)return false;
@@ -63,14 +65,14 @@ function birth(a,b,adopted=false){
  const sex=chance(.5)?'female':'male', first=pick(sex==='female'?firstF:firstM);
  let familyParent=a.inFamily?a:(b?.inFamily?b:a),last=familyParent.last;
  const gen=Math.max(a.gen,b?.gen??a.gen)+1;
- const p=createPerson({first,last,sex,birthYear:state.year,gen,parentIds:adopted?[]:b?[a.id,b.id]:[a.id],adoptiveParentIds:adopted?(b?[a.id,b.id]:[a.id]):[],city:a.city,inFamily:!!(a.inFamily||b?.inFamily),education:0,jobLevel:0,wealth:0});
+ const p=createPerson({first,last,sex,birthYear:state.year,birthDate:state.calendar?.date,gen,parentIds:adopted?[]:b?[a.id,b.id]:[a.id],adoptiveParentIds:adopted?(b?[a.id,b.id]:[a.id]):[],city:a.city,inFamily:!!(a.inFamily||b?.inFamily),education:0,jobLevel:0,wealth:0});
  LEGACY_CONSEQUENCES.childStart(p,[a,b]);bond(p,a,30);if(b)bond(p,b,30);const siblings=[...new Map([...kids(a),...(b?kids(b):[])].filter(q=>q.id!==p.id).map(q=>[q.id,q])).values()];for(const sibling of siblings)bond(p,sibling,12);
  if(!adopted&&b){p.eyeTint=chance(.47)?a.eyeTint:b.eyeTint;p.hairTint=chance(.47)?a.hairTint:b.hairTint}
  addEvent(state.year,adopted?'adoption':'birth',adopted?`${full(p)} joined the family through adoption.`:`${full(p)} was born to ${full(a)}${b?' and '+full(b):''}.`,[p.id,a.id,b?.id]);return p;
 }
 function newWorld(name='Alex Morgan',sex='male',startYear=2026){
  const clean=String(name).trim().replace(/\s+/g,' ');let spl=clean.split(' ');const first=spl.shift()||'Alex',last=spl.join(' ')||'Morgan';
- state={version:VERSION,year:startYear,mode:'individual',realism:'realistic',founderId:null,selectedId:null,controlledId:null,rootId:null,nextId:1,nextEvent:1,rng:hash(clean+startYear),familyName:last,people:{},events:[],attention:{enabled:false,items:[]},pendingChoice:null,pendingSuccession:null,successionLog:[],remainingYears:0,createdAt:new Date().toISOString()};
+ state={version:VERSION,year:startYear,calendar:{date:String(startYear)+'-01-01',minutes:9*60,daysElapsed:0,dailyJournal:[]},mode:'individual',realism:'realistic',founderId:null,selectedId:null,controlledId:null,rootId:null,nextId:1,nextEvent:1,rng:hash(clean+startYear),familyName:last,people:{},events:[],attention:{enabled:false,items:[]},pendingChoice:null,pendingSuccession:null,successionLog:[],remainingYears:0,createdAt:new Date().toISOString()};
  let father=createPerson({first:'Robert',last,sex:'male',birthYear:startYear-53,gen:0,education:2,jobLevel:3,wealth:80000});
  let mother=createPerson({first:'Elaine',last,sex:'female',birthYear:startYear-51,gen:0,education:3,jobLevel:3,wealth:92000});
  father.partnerId=mother.id;mother.partnerId=father.id;father.partnerSince=mother.partnerSince=startYear-27;bond(father,mother,30);
@@ -83,10 +85,11 @@ function newWorld(name='Alex Morgan',sex='male',startYear=2026){
  addEvent(startYear-21,'birth',`${full(sister)} was born.`,[sister.id,father.id,mother.id]);
  addEvent(startYear,'milestone',`The ${last} family's story begins.`,[founder.id]);
  LEGACY_ATTENTION.ensure(state).enabled=true;
+ LEGACY_CALENDAR.ensure(state);
  currentTab='tree';scope='focus';needsFit=true;return state;
 }
 function annualDeathProbability(a){if(a<1)return .004;if(a<15)return .0002;if(a<30)return .0007;if(a<40)return .0013;if(a<50)return .0027;if(a<60)return .006;if(a<70)return .014;if(a<80)return .037;if(a<90)return .09;return Math.min(.5,.17+(a-90)*.012)}
-function die(p,cause='Natural causes'){p.deathYear=state.year;p.causeOfDeath=cause;const q=partner(p);if(q){p.partnerId=null;q.partnerId=null;p.partnerSince=null;q.partnerSince=null;if(!p.formerPartners.includes(q.id))p.formerPartners.push(q.id);if(!q.formerPartners.includes(p.id))q.formerPartners.push(p.id)}
+function die(p,cause='Natural causes'){p.deathYear=state.year;p.deathDate=state.calendar?.date||String(state.year)+'-01-01';p.causeOfDeath=cause;const q=partner(p);if(q){p.partnerId=null;q.partnerId=null;p.partnerSince=null;q.partnerSince=null;if(!p.formerPartners.includes(q.id))p.formerPartners.push(q.id);if(!q.formerPartners.includes(p.id))q.formerPartners.push(p.id)}
  const heirs=[...(q&&alive(q)?[q]:[]),...kids(p).filter(alive)];if(p.wealth>1000&&heirs.length){let amount=p.wealth*.85/heirs.length;for(let h of heirs)h.wealth+=amount;p.wealth*=.15;addEvent(state.year,'inheritance',`${full(p)}'s estate passed to ${heirs.length} surviving family member${heirs.length>1?'s':''}.`,[p.id,...heirs.map(x=>x.id)])}
  addEvent(state.year,'death',`${full(p)} died at age ${age(p)}. Cause: ${cause}.`,[p.id]);
 }
@@ -829,9 +832,12 @@ function bind(){
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveGame()});
 }
 function upgradeOldSave(){
+ LEGACY_CALENDAR.ensure(state);
  LEGACY_ATTENTION.ensure(state);
  LEGACY_LIVING_DECISIONS.ensure(state);LEGACY_STORYLINES.ensure(state);
  for(const p of persons()){
+  if(!p.birthDate)p.birthDate=String(p.birthYear)+'-01-01';
+  if(p.deathYear&&!p.deathDate)p.deathDate=String(p.deathYear)+'-01-01';
   LEGACY_HUMAN.ensure(p,age(p));LEGACY_ECONOMY.ensure(p);LEGACY_MEDICINE.ensure(p);
   LEGACY_EDUCATION.ensure(p);LEGACY_CAREERS.ensure(p);LEGACY_LIVING_PSYCHOLOGY.ensure(p);
   if(!Array.isArray(p.commitments))p.commitments=[];
