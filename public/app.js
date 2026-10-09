@@ -293,35 +293,79 @@ function renderProfile(){const p=get(state.selectedId);if(!p)return;
 }
 
 /* Immersive genealogy: select with a tap, hold to open an accessible full-profile sheet. */
-function showPersonStats(id){
+/* Fixed-height character record: each tab is a complete screen, never a scrolling document. */
+function showPersonStats(id,tab='overview',page=0){
  if(state.pendingChoice||state.pendingSuccession)return;
  const p=get(id);if(!p)return;
  selectPerson(id);
- const path=p.lifePath||{};
- const history=state.events.filter(e=>Array.isArray(e.personIds)&&e.personIds.includes(p.id)).slice(-40).reverse();
- const parents=p.parentIds.map(get).filter(Boolean),adopters=p.adoptiveParentIds.map(get).filter(Boolean);
- const children=kids(p),relatives=related(p).filter(alive);
- const links=relatives.map(q=>({person:q,strength:Math.round(p.bonds?.[q.id]??50)})).sort((a,b)=>b.strength-a.strength).slice(0,15);
- const detailStats=[
-  ['Born',String(p.birthYear)],['Died',p.deathYear?String(p.deathYear):'—'],
-  ['Generation',String(p.gen+1)],['Estimated annual income',age(p)>=18&&!p.retired?money(incomeFor(p)):'Not working'],
-  ['Career level',String(p.jobLevel??0)+' / 6'],['Education level',String(p.education??0)+' / 4'],
-  ['Education debt',money(path.educationDebt||0)],['Career skills',String(path.skills||0)],
-  ['Career momentum',String(path.momentum||0)],['Financial discipline',String(path.discipline||0)],
-  ['Community ties',String(path.community||0)],['Business experience',String(path.enterprise||0)],
-  ['Family involvement',String(path.familyTime||0)],['Biological parents',String(parents.length)],
-  ['Adoptive parents',String(adopters.length)],['Children',String(children.length)]
- ];
- const summary=$('#profile-content').innerHTML.replace('id="take-control"','id="sheet-take-control"');
- const details=detailStats.map(([label,value])=>'<div class="person-sheet-fact"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong></div>').join('');
- const relationships=links.length?links.map(({person:q,strength})=>'<button class="person-sheet-relation" data-person="'+esc(q.id)+'"><span>'+esc(full(q))+'</span><span>'+strength+' / 100</span></button>').join(''):'<div class="empty-note">No living relatives in their immediate circle.</div>';
- const events=history.length?history.map(e=>'<div class="event-mini"><span class="event-mini-year">'+esc(e.year)+'</span><span>'+esc(e.message)+'</span></div>').join(''):'<div class="empty-note">No recorded life events yet.</div>';
- showModal('<div class="person-sheet"><div class="person-sheet-top"><div><div class="eyebrow">FAMILY RECORD / PERSON '+esc(p.id.toUpperCase())+'</div><div class="person-sheet-topname">'+esc(full(p))+'</div></div><button id="person-sheet-close" class="person-sheet-close" type="button" aria-label="Close person details">✕</button></div><div class="person-sheet-scroll">'+summary+'<section class="person-sheet-extra"><div class="block-title">Complete character statistics</div><div class="person-sheet-facts">'+details+'</div><div class="block-title">Relationship strengths</div><div class="person-sheet-relations">'+relationships+'</div><div class="block-title">Family chronicle · '+history.length+' recent records</div><div class="person-sheet-events">'+events+'</div></section></div></div>');
+ const allowed=['overview','stats','family','actions','history'];
+ if(!allowed.includes(tab))tab='overview';
+ const parents=(p.parentIds||[]).map(get).filter(Boolean);
+ const adopters=(p.adoptiveParentIds||[]).map(get).filter(Boolean);
+ const children=kids(p),q=partner(p),life=p.lifePath||{};
+ const history=state.events.filter(e=>e.personIds?.includes(p.id)).slice().reverse();
+ const rel=related(p).filter(Boolean).map(person=>{
+  const parent=parents.some(x=>x.id===person.id)||adopters.some(x=>x.id===person.id);
+  const child=children.some(x=>x.id===person.id);
+  const type=parent?'Parent':child?'Child':q?.id===person.id?'Partner':p.formerPartners?.includes(person.id)?'Former partner':'Family';
+  return {person,type,strength:Math.round(p.bonds?.[person.id]??50)};
+ });
+ const occupation=age(p)<18?'Growing up':p.retired?'Retired':jobs[Math.min(p.jobLevel??0,5)]||'Unemployed';
+ const education=['Early learning','Secondary','Vocational / college','Higher education','Advanced education'][Math.min(p.education??0,4)]||'Education';
+ const metric=(label,value)=>'<div class="person-page-metric"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong></div>';
+ const title=t=>'<h3 class="person-page-title">'+esc(t)+'</h3>';
+ const trait=(label,value)=>'<div class="person-page-trait"><span>'+esc(label)+'</span><div class="person-page-track"><div style="width:'+Math.max(0,Math.min(100,Number(value)||0))+'%"></div></div><b>'+Math.round(value||0)+'</b></div>';
+ let body='';
+ if(tab==='overview'){
+  const overview=[
+   ['Occupation',occupation],['Personal wealth',money(p.wealth)],
+   ['Education',education],['Children',String(children.length)]
+  ];
+  body='<div class="person-overview-identity"><div class="person-page-avatar" style="'+gradient(p)+'">'+esc(initials(p))+'</div><div><strong>'+esc(full(p))+'</strong><small>'+esc(ages(p))+' · Generation '+(p.gen+1)+' · '+esc(p.city)+'</small><span class="person-page-status '+(alive(p)?'':'is-deceased')+'">'+(alive(p)?'● LIVING':'◆ REMEMBERED')+'</span></div></div>'+
+  '<div class="person-page-metrics">'+overview.map(([a,b])=>metric(a,b)).join('')+'</div>'+
+  title('Life path & legacy')+'<p class="person-page-description">'+esc(LEGACY_CONSEQUENCES.describe(p))+'</p>'+
+  title('Family overview')+'<div class="person-page-summary">'+parents.length+' biological parent'+(parents.length===1?'':'s')+' · '+adopters.length+' adoptive parent'+(adopters.length===1?'':'s')+' · '+children.length+' child'+(children.length===1?'':'ren')+' · '+(q?'Partnered':'No current partner')+'</div>';
+ }else if(tab==='stats'){
+  const facts=[
+   ['Birth year',p.birthYear],['Death year',p.deathYear||'—'],['Generation',p.gen+1],['Annual income',age(p)>=18&&!p.retired?money(incomeFor(p)):'—'],
+   ['Career level',(p.jobLevel??0)+' / 6'],['Education level',(p.education??0)+' / 4'],['Education debt',money(life.educationDebt||0)],['Career skills',life.skills||0],
+   ['Career momentum',life.momentum||0],['Discipline',life.discipline||0],['Community ties',life.community||0],['Business experience',life.enterprise||0],
+   ['Family involvement',life.familyTime||0],['Biological parents',parents.length],['Adoptive parents',adopters.length],['Children',children.length]
+  ];
+  const traits=[['Curiosity',p.traits?.openness],['Discipline',p.traits?.conscientiousness],['Sociability',p.traits?.extraversion],['Cooperation',p.traits?.agreeableness],['Emotional sensitivity',p.traits?.emotionality]];
+  body=title('Personality · five traits')+'<div class="person-page-traits">'+traits.map(([a,b])=>trait(a,b)).join('')+'</div>'+
+   title('Complete character statistics')+'<div class="person-page-facts">'+facts.map(([a,b])=>metric(a,b)).join('')+'</div>';
+ }else if(tab==='family'){
+  const size=6,pages=Math.max(1,Math.ceil(rel.length/size));page=Math.max(0,Math.min(page,pages-1));
+  body=title('Family connections · '+rel.length)+
+   '<div class="person-page-connections">'+(rel.length?rel.slice(page*size,(page+1)*size).map(x=>'<button class="person-page-relation" data-person="'+esc(x.person.id)+'"><span><strong>'+esc(full(x.person))+'</strong><small>'+esc(x.type)+' · '+esc(ages(x.person))+'</small></span><b>'+x.strength+' / 100</b></button>').join(''):'<p class="person-page-empty">No recorded close family connections yet.</p>')+'</div>'+pageControls('family',page,pages);
+ }else if(tab==='actions'){
+  const canAct=alive(p)&&(state.mode==='family'||state.controlledId===p.id);
+  const actions=[['partner','♥','Find partner'],['child','✦','Grow family'],['career','↑','Career'],['educate','◈','Education'],['move','⌁','Relocate'],['support','♡','Support kin']];
+  body=title('Life decisions')+'<div class="person-page-actions">'+actions.map(([id,icon,label])=>'<button class="person-page-action" data-action="'+id+'" '+(canAct?'':'disabled')+'><span>'+icon+'</span>'+esc(label)+'</button>').join('')+'</div>'+
+   (!alive(p)?'<p class="person-page-description">Their life has ended. The family record remains available.</p>':
+    state.mode==='individual'&&state.controlledId!==p.id?'<button class="person-page-take" id="sheet-take-control">▶ Live as '+esc(p.first)+'</button>':
+    '<p class="person-page-description">Your choices change relationships, finances and future opportunities. Major events also appear as time advances.</p>');
+ }else if(tab==='history'){
+  const size=4,pages=Math.max(1,Math.ceil(history.length/size));page=Math.max(0,Math.min(page,pages-1));
+  body=title('Family chronicle · '+history.length+' events')+'<div class="person-page-history">'+
+   (history.length?history.slice(page*size,(page+1)*size).map(e=>'<div class="person-page-event"><b>'+esc(e.year)+'</b><span>'+esc(e.message)+'</span></div>').join(''):'<p class="person-page-empty">No recorded events yet.</p>')+'</div>'+pageControls('history',page,pages);
+ }
+ function pageControls(which,current,total){
+  return total>1?'<div class="person-page-pagination"><button data-page="-1" '+(current===0?'disabled':'')+' aria-label="Previous '+which+' page">← Prev</button><span>Page '+(current+1)+' of '+total+'</span><button data-page="1" '+(current===total-1?'disabled':'')+' aria-label="Next '+which+' page">Next →</button></div>':'';
+ }
+ const tabs=[['overview','Overview'],['stats','Stats'],['family','Family'],['actions','Actions'],['history','History']];
+ const tabNav=tabs.map(([key,name])=>'<button role="tab" data-person-tab="'+key+'" aria-selected="'+(tab===key)+'" class="'+(tab===key?'active':'')+'">'+name+'</button>').join('');
+ showModal('<div class="person-sheet person-sheet-compact"><div class="person-sheet-top"><div><div class="eyebrow">FAMILY RECORD · '+esc(p.id.toUpperCase())+' · '+esc(yearSpan(p))+'</div><div class="person-sheet-topname">'+esc(full(p))+'</div></div><button id="person-sheet-close" class="person-sheet-close" type="button" aria-label="Close person details">✕</button></div><nav class="person-sheet-tabs" role="tablist" aria-label="Character details">'+tabNav+'</nav><div class="person-sheet-screen" role="tabpanel" aria-label="'+esc(tab)+'">'+body+'</div></div>');
+ $('#modal-backdrop').classList.add('person-profile-backdrop');
+ $('#modal-content').classList.add('person-profile-dialog');
  $('#person-sheet-close').onclick=closeModal;
- $$('#modal-content [data-person]').forEach(b=>b.onclick=()=>showPersonStats(b.dataset.person));
- $$('#modal-content [data-action]').forEach(b=>b.onclick=()=>{decide(b.dataset.action);if(!state.pendingChoice&&!state.pendingSuccession)showPersonStats(p.id);});
+ $$('[data-person-tab]').forEach(b=>b.onclick=()=>showPersonStats(id,b.dataset.personTab));
+ $$('[data-person]').forEach(b=>b.onclick=()=>showPersonStats(b.dataset.person));
+ $$('[data-page]').forEach(b=>b.onclick=()=>showPersonStats(id,tab,page+Number(b.dataset.page)));
+ $$('[data-action]').forEach(b=>b.onclick=()=>{decide(b.dataset.action);if(!state.pendingChoice&&!state.pendingSuccession)showPersonStats(id,'actions');});
  const take=$('#sheet-take-control');
- if(take)take.onclick=()=>{state.controlledId=p.id;saveSoon();showPersonStats(p.id);toast('You are now living as '+p.first+'.');};
+ if(take)take.onclick=()=>{state.controlledId=p.id;saveSoon();showPersonStats(p.id,'actions');toast('You are now living as '+p.first+'.');};
 }
 
 function visiblePeople(){const all=persons();if(scope==='all'){
@@ -421,8 +465,8 @@ function advance(years,continuation=false){
  }catch(e){console.error(e);toast('Simulation error: please export a backup.')}
  finally{busy=false}
 }
-function showModal(html){$('#modal-content').innerHTML=html;$('#modal-backdrop').classList.remove('hidden')}
-function closeModal(){if(state?.pendingChoice||state?.pendingSuccession)return;$('#modal-backdrop').classList.add('hidden')}
+function showModal(html){$('#modal-content').classList.remove('person-profile-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop');$('#modal-content').innerHTML=html;$('#modal-backdrop').classList.remove('hidden')}
+function closeModal(){if(state?.pendingChoice||state?.pendingSuccession)return;$('#modal-backdrop').classList.add('hidden');$('#modal-content').classList.remove('person-profile-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop')}
 
 function showSuccession(){
  const pending=state.pendingSuccession;if(!pending)return;
