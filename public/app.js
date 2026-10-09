@@ -40,7 +40,7 @@ function hue(id){let n=Number(String(id).replace(/\D/g,''))||1;return (154+n*43)
 function gradient(p){let h=hue(p.id);return `--c1:hsl(${h},29%,38%);--c2:hsl(${(h+40)%360},27%,18%)`}
 function makeTraits(parentIds){let base={};for(let k of ['openness','conscientiousness','extraversion','agreeableness','emotionality']){const ps=parentIds.map(get).filter(Boolean);let m=ps.length?ps.reduce((v,p)=>v+p.traits[k],0)/ps.length:50;base[k]=Math.max(5,Math.min(95,Math.round(50+(m-50)*.43+int(-29,29))))}return base}
 function createPerson({first,last,sex,birthYear,birthDate,gen=0,parentIds=[],adoptiveParentIds=[],inFamily=true,city='New York',education,jobLevel,wealth}){
- const p={id:id(),first,last,sex,birthYear,birthDate:birthDate||String(birthYear)+'-01-01',deathYear:null,gen,parentIds:[...parentIds],adoptiveParentIds:[...adoptiveParentIds],inFamily,city,
+ const p={id:id(),first,last,sex,birthYear,birthDate:birthDate||String(birthYear)+'-01-01',birthDatePrecision:birthDate?'day':'year',deathYear:null,gen,parentIds:[...parentIds],adoptiveParentIds:[...adoptiveParentIds],inFamily,city,
  partnerId:null,partnerSince:null,formerPartners:[],education:education??(birthYear<=state.year-25?int(1,3):0),jobLevel:jobLevel??(birthYear<=state.year-20?int(1,3):0),wealth:wealth??int(300,6500),
  traits:makeTraits(parentIds),bonds:{},eyeTint:pick(['hazel','brown','brown','blue','green']),hairTint:pick(['brown','black','blond','auburn']),memory:[]};
  LEGACY_HUMAN.ensure(p,state.year-birthYear);LEGACY_ECONOMY.ensure(p);LEGACY_MEDICINE.ensure(p);LEGACY_EDUCATION.ensure(p);LEGACY_CAREERS.ensure(p);LEGACY_LIVING_PSYCHOLOGY.ensure(p);state.people[p.id]=p;return p;
@@ -409,6 +409,7 @@ function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.remove(
 function renderStats(){const all=persons(),living=all.filter(alive),family=all.filter(p=>p.inFamily),gs=family.map(p=>p.gen),generation=gs.length?Math.max(...gs)+1:1;
  const wealth=living.reduce((v,p)=>v+p.wealth,0);
  $('#header-year').textContent=state.year;
+ renderCalendar();
  $('#stats').innerHTML=[['LIVING RELATIVES',fmtN(living.length),'↗'],['RECORDED LIVES',fmtN(all.length),''],['GENERATIONS',String(generation),''],['FAMILY NET WORTH',money(wealth),'']].map(s=>`<div class="stat"><div class="stat-label">${s[0]}</div><div class="stat-value">${s[1]} ${s[2]?`<small>${s[2]}</small>`:''}</div></div>`).join('');
  $('#world-title').textContent=`THE ${state.familyName.toUpperCase()} FAMILY`;
  $('#tree-heading').textContent=`The ${state.familyName} family`;
@@ -790,11 +791,15 @@ function setTab(tab){currentTab=tab;$('#app').classList.toggle('immersive-tree',
 function render(){if(!state)return;renderStats();renderProfile();renderAttention();if(currentTab==='tree')requestAnimationFrame(layoutGraph);if(currentTab==='people')renderPeople();if(currentTab==='history')renderHistory();}
 function advance(years,continuation=false){
  if(busy||state.pendingChoice||state.pendingSuccession)return;
+ LEGACY_CALENDAR.ensure(state);
  if(state.nextId>MAX_PEOPLE){toast('2,000-person prototype limit. Export your family; larger simulations are planned.');return}
  if(!continuation)state.remainingYears=0;
  busy=true;const before=state.events.length,peeps=persons().length;let passed=0;
  try{
   for(let i=0;i<years;i++){
+   const c=state.calendar,old=c.date;
+   c.date=LEGACY_CALENDAR.shiftYears(c.date,1);
+   c.daysElapsed+=Math.round((Date.parse(c.date+'T12:00:00Z')-Date.parse(old+'T12:00:00Z'))/86400000);
    simulateOneYear();passed++;
    if(state.pendingSuccession){state.remainingYears=years-passed;break;}
    if(state.pendingChoice){state.remainingYears=years-passed;break;}
@@ -857,6 +862,10 @@ function bind(){
  $$('.scope').forEach(b=>b.onclick=()=>{scope=b.dataset.scope;$$('.scope').forEach(x=>x.classList.toggle('active',x.dataset.scope===scope));needsFit=true;layoutGraph()});
  $$('.mode-toggle button').forEach(b=>b.onclick=()=>{state.mode=b.dataset.mode;saveSoon();render();toast(state.mode==='individual'?'Individual Control: follow a selected life.':'Family Control: direct any living relative.')});
  $$('.advance').forEach(b=>b.onclick=()=>advance(Number(b.dataset.years)));
+ $('#advance-hour').onclick=()=>advanceCalendar('hour',1);
+ $('#advance-day').onclick=()=>advanceCalendar('day',1);
+ $('#advance-month').onclick=()=>advanceCalendar('month',1);
+ $('#calendar-detail').onclick=showCalendarDetails;
  $('#zoom-in').onclick=()=>{camera.scale=Math.min(3,camera.scale*1.24);drawGraph()};
  $('#zoom-out').onclick=()=>{camera.scale=Math.max(.12,camera.scale/1.24);drawGraph()};
  $('#zoom-fit').onclick=()=>{fitScene();drawGraph()};
@@ -937,5 +946,5 @@ function upgradeOldSave(){
 async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}upgradeOldSave();state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
-window.LEGACY_TEST={getState:()=>state,addEvent,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera})};
+window.LEGACY_TEST={getState:()=>state,addEvent,advance,advanceCalendar,renderCalendar,showCalendarDetails,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera})};
 })();
