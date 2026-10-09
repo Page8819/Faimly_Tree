@@ -43,7 +43,7 @@ jobs:
           URL='https://familytree-584d.ianpageebersole-ca8.workers.dev/version.json'
           for i in 1 2 3 4 5 6; do
             if curl --fail --silent --show-error --max-time 12 "$URL" -o /tmp/legacy-version.json; then
-              node -e "const v=require('/tmp/legacy-version.json');if(v.version!=='1.23.0')process.exit(1);console.log('Live LEGACY',v.version)"
+              node -e "const expected=require('./public/version.json').version;const actual=require('/tmp/legacy-version.json').version;if(actual!==expected){console.error('Expected',expected,'got',actual);process.exit(1)}console.log('Live LEGACY',actual)"
               exit 0
             fi
             sleep 5
