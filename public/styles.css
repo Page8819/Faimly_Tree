@@ -117,3 +117,140 @@
  .modal:has(>.person-sheet){height:calc(100dvh - 12px);max-height:calc(100dvh - 12px);width:min(100%,740px)}
  .person-sheet-top{padding:8px 16px}
 }
+
+
+/* v1.5 character profile: genuinely paged, never a scrolling sheet. */
+.modal-backdrop.person-profile-backdrop{
+  display:flex;align-items:stretch;justify-content:center;
+  padding:18px max(16px,env(safe-area-inset-right,0px)) max(18px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+}
+.modal.person-profile-dialog{
+  width:min(100%,680px);max-width:680px;
+  height:100%;max-height:100%;min-height:0;
+  overflow:hidden;padding:0;border-radius:19px;
+}
+.person-sheet.person-sheet-compact{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.person-sheet-compact .person-sheet-top{
+  min-height:65px;flex:none;padding:11px 16px;
+  align-items:center;gap:10px;
+}
+.person-sheet-compact .person-sheet-top .eyebrow{letter-spacing:1.3px;font-size:9px}
+.person-sheet-compact .person-sheet-topname{font-size:23px;line-height:1.08;margin-top:5px}
+.person-sheet-compact .person-sheet-close{width:40px;height:40px}
+.person-sheet-tabs{
+  flex:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:3px;padding:5px 9px 6px;border-bottom:1px solid #344c49;background:#102427;
+}
+.person-sheet-tabs button{
+  color:#abc0b7;border:1px solid transparent;border-radius:7px;
+  padding:10px 2px;background:transparent;font-size:11px;font-weight:720;
+  white-space:nowrap;min-width:0;
+}
+.person-sheet-tabs button.active{background:#34463e;border-color:#826f4f;color:#f4d8a3}
+.person-sheet-screen{
+  flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;
+  gap:9px;padding:13px 16px 16px;overscroll-behavior:none;
+}
+.person-page-title{font-size:10px;letter-spacing:1.15px;color:var(--gold);margin:2px 0 0;text-transform:uppercase;font-weight:790;line-height:1.25}
+.person-overview-identity{display:flex;gap:12px;align-items:center;min-height:90px}
+.person-page-avatar{
+  flex:none;width:69px;height:74px;display:grid;place-items:center;
+  border:1px solid #748f8166;border-radius:13px;
+  background:linear-gradient(145deg,var(--c1),var(--c2));
+  color:#fff9e8;font-family:Georgia,serif;font-size:25px;
+}
+.person-overview-identity>div:last-child{min-width:0;display:flex;flex-direction:column;gap:6px}
+.person-overview-identity strong{font-size:19px;font-family:Georgia,serif;font-weight:450;line-height:1.1}
+.person-overview-identity small{font-size:11px;color:#bac8bd;line-height:1.3}
+.person-page-status{font-size:9px;letter-spacing:1px;font-weight:750;color:#b8e3cc}
+.person-page-status.is-deceased{color:#ecb5ac}
+.person-page-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.person-page-metric{
+  display:flex;flex-direction:column;justify-content:center;min-width:0;
+  background:#1a3232;border:1px solid #34504d;border-radius:10px;padding:11px 12px;
+}
+.person-page-metric small{font-size:9px;font-weight:770;color:#9fb6b1;letter-spacing:.6px;text-transform:uppercase;line-height:1.15}
+.person-page-metric strong{font-size:14px;font-weight:650;color:#f1f2e6;line-height:1.25;margin-top:6px;overflow-wrap:anywhere}
+.person-page-description,.person-page-summary{
+  margin:0;font-size:12px;line-height:1.45;color:#c2d2c9;
+  background:#142a2d;border:1px solid #2f4946;padding:10px 12px;border-radius:9px;
+  overflow:hidden;
+}
+.person-page-traits{display:grid;grid-template-columns:1fr;gap:8px;flex:none}
+.person-page-trait{display:grid;grid-template-columns:minmax(0,111px) minmax(0,1fr) 25px;gap:9px;align-items:center;min-height:21px;color:#d3ded4;font-size:11px}
+.person-page-trait b{text-align:right;font-size:11px;font-weight:600;color:#f2e9d6}
+.person-page-track{height:7px;border-radius:10px;background:#284140;overflow:hidden}
+.person-page-track div{height:100%;border-radius:inherit;background:linear-gradient(90deg,#70ae9d,#e0bd7c)}
+.person-page-facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;min-height:0}
+.person-page-facts .person-page-metric{padding:6px;min-height:48px;border-radius:7px}
+.person-page-facts .person-page-metric small{font-size:8px;letter-spacing:0;line-height:1.12}
+.person-page-facts .person-page-metric strong{font-size:11px;margin-top:3px}
+.person-page-connections,.person-page-history{display:grid;align-content:start;gap:7px;flex:1;min-height:0;overflow:hidden}
+.person-page-relation{
+  border:1px solid #34524e;border-radius:9px;background:#183132;color:#eaf1e4;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:50px;padding:8px 12px;text-align:left;
+}
+.person-page-relation span{display:flex;flex-direction:column;min-width:0;gap:3px}
+.person-page-relation strong{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.person-page-relation small{font-size:10px;color:#aabfba}
+.person-page-relation b{font-size:11px;color:var(--gold);white-space:nowrap;font-weight:650}
+.person-page-relation:hover{border-color:var(--gold)}
+.person-page-pagination{display:flex;justify-content:space-between;align-items:center;flex:none;gap:8px;color:#a5b9af;font-size:11px}
+.person-page-pagination button{min-height:37px;padding:7px 12px;border:1px solid #496159;color:var(--text);background:#23403d;border-radius:9px}
+.person-page-pagination button:disabled{opacity:.3}
+.person-page-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,minmax(53px,1fr));gap:9px;flex:1;min-height:0}
+.person-page-action{border-radius:10px;background:#24413c;border:1px solid #4a6559;color:#f1f0e6;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:9px;min-width:0;min-height:42px}
+.person-page-action span{font-size:18px;color:#e2c38b}
+.person-page-action:disabled{opacity:.35}
+.person-page-take{padding:11px;border:1px solid #b39762;background:#594b31;color:#f8e3b8;border-radius:9px;font-weight:750}
+.person-page-event{padding:11px 12px;min-height:56px;border:1px solid #34514c;border-radius:9px;background:#193031;display:grid;grid-template-columns:40px minmax(0,1fr);gap:9px;align-items:start}
+.person-page-event b{color:var(--gold);font-size:11px}
+.person-page-event span{color:#d0dcd3;font-size:11px;line-height:1.38;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.person-page-empty{font-size:12px;color:var(--muted)}
+@media(max-width:680px){
+ .modal-backdrop.person-profile-backdrop{
+  padding-top:max(66px,calc(env(safe-area-inset-top,0px) + 12px));
+  padding-right:max(13px,env(safe-area-inset-right,0px));
+  padding-bottom:max(12px,env(safe-area-inset-bottom,0px));
+  padding-left:max(13px,env(safe-area-inset-left,0px));
+ }
+ .modal.person-profile-dialog{width:100%;height:100%;max-height:100%;border-radius:17px}
+ .person-sheet-compact .person-sheet-top{min-height:60px;padding:9px 12px}
+ .person-sheet-compact .person-sheet-topname{font-size:20px}
+ .person-sheet-tabs{padding:4px 6px 5px;gap:1px}
+ .person-sheet-tabs button{font-size:10px;padding:9px 0}
+ .person-sheet-screen{padding:11px 11px 12px;gap:8px}
+ .person-page-facts{gap:4px}
+ .person-page-facts .person-page-metric{min-height:46px;padding:5px}
+ .person-page-facts .person-page-metric small{font-size:7.5px}
+ .person-page-facts .person-page-metric strong{font-size:10px}
+}
+@media(max-height:660px){
+ .person-sheet-screen{gap:6px;padding-top:8px;padding-bottom:8px}
+ .person-overview-identity{min-height:68px}
+ .person-page-avatar{width:54px;height:58px}
+ .person-page-metric{padding:7px 9px}
+ .person-page-traits{gap:4px}
+ .person-page-trait{min-height:18px}
+ .person-page-facts .person-page-metric{min-height:37px}
+ .person-page-relation{min-height:39px}
+ .person-page-actions{grid-template-rows:repeat(3,minmax(40px,1fr))}
+}
+@media(max-height:520px){
+ .modal-backdrop.person-profile-backdrop{padding-top:max(8px,env(safe-area-inset-top,0px));padding-bottom:max(8px,env(safe-area-inset-bottom,0px))}
+ .person-sheet-compact .person-sheet-top{min-height:43px;padding:5px 12px}
+ .person-sheet-compact .person-sheet-topname{font-size:16px;margin-top:3px}
+ .person-sheet-compact .person-sheet-top .eyebrow{font-size:7px}
+ .person-sheet-compact .person-sheet-close{width:31px;height:31px}
+ .person-sheet-tabs button{padding:5px 0}
+ .person-sheet-screen{gap:3px;padding:5px 9px}
+ .person-page-traits{gap:1px}
+ .person-page-trait{min-height:14px;font-size:9px}
+ .person-page-facts .person-page-metric{min-height:27px}
+ .person-page-facts .person-page-metric strong{font-size:9px}
+ .person-page-facts .person-page-metric small{font-size:7px}
+ .person-page-connections,.person-page-history{gap:3px}
+ .person-page-relation{min-height:28px;padding:3px 8px}
+ .person-page-event{min-height:34px;padding:4px 8px}
+}
