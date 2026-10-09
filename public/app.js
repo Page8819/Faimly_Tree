@@ -719,8 +719,8 @@ function advance(years,continuation=false){
  }catch(e){console.error(e);toast('Simulation error: please export a backup.')}
  finally{busy=false}
 }
-function showModal(html){$('#modal-content').classList.remove('person-profile-dialog','living-decision-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop','living-decision-backdrop');$('#modal-content').innerHTML=html;$('#modal-backdrop').classList.remove('hidden')}
-function closeModal(){if(state?.pendingChoice||state?.pendingSuccession)return;$('#modal-backdrop').classList.add('hidden');$('#modal-content').classList.remove('person-profile-dialog','living-decision-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop','living-decision-backdrop')}
+function showModal(html){$('#modal-content').classList.remove('person-profile-dialog','living-decision-dialog','attention-inbox-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop','living-decision-backdrop','attention-inbox-backdrop');$('#modal-content').innerHTML=html;$('#modal-backdrop').classList.remove('hidden')}
+function closeModal(){if(state?.pendingChoice||state?.pendingSuccession)return;$('#modal-backdrop').classList.add('hidden');$('#modal-content').classList.remove('person-profile-dialog','living-decision-dialog','attention-inbox-dialog');$('#modal-backdrop').classList.remove('person-profile-backdrop','living-decision-backdrop','attention-inbox-backdrop')}
 
 function showSuccession(){
  const pending=state.pendingSuccession;if(!pending)return;
@@ -845,5 +845,5 @@ function upgradeOldSave(){
 async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}upgradeOldSave();state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
-window.LEGACY_TEST={getState:()=>state,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,getScene:()=>scene,getCamera:()=>({...camera})};
+window.LEGACY_TEST={getState:()=>state,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera})};
 })();
