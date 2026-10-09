@@ -62,3 +62,60 @@ html,body{overscroll-behavior:none;background:#081713}
  .app.zen-tree .canvas-tools{bottom:var(--ui-bottom)}
 }
 @media(max-width:360px){.app .calendar-primary{font-size:20px}.app .calendar-date-button small{font-size:9px}.app .tree-view .panel-subtext{max-width:174px;font-size:8px}.app .brand-name{font-size:20px}}
+
+/* LEGACY v1.23.0 — true edge-to-edge iPhone layout, measured from safe areas once.
+   The entire viewport is a tree canvas; controls overlay rather than reduce its height. */
+html,body{width:100%;height:100%;min-height:100%;background:#081713!important}
+body{position:fixed;inset:0;overflow:hidden}
+.app,.app.immersive-tree{position:fixed!important;inset:0!important;width:100%;height:100%!important;height:100dvh!important;min-height:0!important;max-width:none;margin:0;overflow:hidden;background:#081713}
+.app .workspace{position:absolute;inset:0;min-height:0;overflow:hidden}
+.app .workspace-primary,.app .tree-view,.app .canvas-wrap{height:100%;min-height:0;width:100%}
+.app .canvas-wrap{position:absolute;inset:0;overflow:hidden}
+.app #tree-canvas{display:block;width:100%;height:100%;touch-action:none}
+.app .header,.app .calendar-strip,.app .main-topbar,.app .time-dock{flex-shrink:0}
+.app .version-tag{display:inline-block;vertical-align:middle;margin-left:6px;font:600 8px/1.4 -apple-system,BlinkMacSystemFont,sans-serif;letter-spacing:.5px;color:#b5a179}
+@media(max-width:680px){
+ .app{--ui-bottom:max(9px,env(safe-area-inset-bottom,0px));--dock-bottom:calc(var(--ui-bottom) + 66px)}
+ .app .header{top:calc(env(safe-area-inset-top,0px) + 3px);height:50px;min-height:0;padding:1px 0;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;justify-content:space-between}
+ .app .brand{gap:5px}.app .brand-symbol{width:26px;height:30px}.app .brand-name{font-size:21px;letter-spacing:2px}.app .brand-sub,.app .year-display{display:none}
+ .app .header-actions{gap:7px}.app .icon-button{height:42px;width:42px}
+ .app .calendar-strip{top:calc(env(safe-area-inset-top,0px) + 59px);left:18px;right:18px;min-height:0;padding:0}
+ .app .calendar-date-button{min-height:43px;gap:3px}.app .calendar-primary{font-size:clamp(19px,5.6vw,23px);line-height:1.18;white-space:nowrap}
+ .app .calendar-date-button small{display:block;font-size:10px;line-height:1.25}
+ .app .tree-view .panel-heading{top:calc(env(safe-area-inset-top,0px) + 115px);left:18px;right:16px;height:46px;min-height:0;gap:8px}
+ .app .tree-view .panel-heading>div:first-child{display:block;flex:1;min-width:0}
+ .app .tree-view .panel-heading h1{font-size:12px;letter-spacing:.9px;margin:0 0 4px}
+ .app .tree-view .panel-subtext{max-width:none;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .app .scope-switch{flex:none}.app .scope{min-width:46px;min-height:35px;padding:7px 10px}
+ .app:before{height:calc(192px + env(safe-area-inset-top,0px))}
+ .app .main-topbar{bottom:var(--ui-bottom);width:calc(100% - 26px);height:55px;padding:4px}
+ .app .tab{min-height:45px;font-size:12px;gap:6px}
+ .app .time-dock{bottom:var(--dock-bottom);width:calc(100% - 26px)}
+ .app .living-timeline{padding:0 11px 10px;gap:7px}
+ .app .living-timeline-top{gap:6px}.app .timeline-speed-label{font-size:10px}
+ .app #timeline-speed{min-height:38px;font-size:12px}
+ .app .timeline-play{min-height:39px;min-width:84px;font-size:12px}
+ .app .selected-person{left:14px;bottom:calc(var(--ui-bottom) + 177px);padding:9px 11px;min-height:60px;width:min(282px,calc(100% - 100px))}
+ .app .selected-avatar{width:36px;height:40px}.app .selected-copy strong{font-size:15px}
+ .app .canvas-caption{left:18px;bottom:calc(var(--ui-bottom) + 251px);font-size:9px}
+ .app .canvas-tools{right:15px;bottom:calc(var(--ui-bottom) + 186px);gap:6px;grid-template-columns:43px}
+ .app .canvas-tools button{width:43px;height:43px}
+ .app .attention-banner{bottom:calc(var(--ui-bottom) + 259px)}
+ .app:not(.immersive-tree) .workspace{top:calc(env(safe-area-inset-top,0px) + 57px);bottom:calc(var(--ui-bottom) + 65px)}
+ .app .list-view{min-height:0;overflow:hidden}
+ .app.zen-tree .canvas-tools{bottom:calc(var(--ui-bottom) + 8px)}
+}
+@media(max-width:370px){
+ .app .tree-view .panel-heading{left:14px;right:12px}
+ .app .tree-view .panel-subtext{max-width:160px}
+ .app .calendar-strip{left:14px;right:12px}
+ .app .selected-person{width:calc(100% - 99px)}
+ .app .tab{gap:4px;font-size:11px}
+}
+@media(max-height:650px) and (max-width:680px){
+ .app .calendar-strip{top:calc(env(safe-area-inset-top,0px) + 53px)}
+ .app .tree-view .panel-heading{top:calc(env(safe-area-inset-top,0px) + 105px)}
+ .app .selected-person{bottom:calc(var(--ui-bottom) + 167px)}
+ .app .canvas-caption{display:none}
+ .app .canvas-tools{grid-template-columns:43px 43px;bottom:calc(var(--ui-bottom) + 178px)}
+}
