@@ -19,6 +19,7 @@ jobs:
           node --check public/succession.js
           node --check public/human.js
           node --check public/economy.js
+          node --check public/relationships.js
           node --test tests/*.test.cjs
       - name: Confirm static entry points
         run: |
