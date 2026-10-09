@@ -24,7 +24,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
   requestAnimationFrame(f){f()},Intl,Date,Math,Blob,URL
  };
  sandbox.window=sandbox;
- for(const name of ['consequences.js','events.js','succession.js','app.js']){
+ for(const name of ['human.js','consequences.js','events.js','succession.js','app.js']){
   const source=fs.readFileSync(path.join(__dirname,'../public',name),'utf8');
   vm.runInNewContext(source,sandbox,{filename:name,timeout:2000});
  }
@@ -34,6 +34,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.ok(api,'integration hooks installed');
  let state=api.getState();assert.equal(state.year,2026);
  assert.equal(Object.keys(state.people).length,4);
+ assert.ok(state.people[state.controlledId].needs?.physical>0);
  // The immersive view hides the permanent sidebar and uses a character sheet.
  const css=fs.readFileSync(path.join(__dirname,'../public/styles.css'),'utf8');
  assert.match(css,/\.app\.immersive-tree\{grid-template-rows/);
