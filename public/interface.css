@@ -38,3 +38,27 @@ html,body{overscroll-behavior:none;background:#081713}
 @media(max-height:600px) and (orientation:portrait){.app .brand-sub{display:none}.app .header{height:58px}.app .calendar-strip{top:calc(60px + env(safe-area-inset-top,0px))}.app .calendar-date-button small{display:none}.app .tree-view .panel-heading{top:calc(105px + env(safe-area-inset-top,0px))}.app .attention-inbox-button{top:calc(152px + env(safe-area-inset-top,0px))}.app .selected-person{bottom:calc(201px + env(safe-area-inset-bottom,0px));padding:8px}.app .canvas-caption{display:none}.app .attention-banner{display:none}.app .canvas-tools{bottom:calc(203px + env(safe-area-inset-bottom,0px));grid-template-columns:repeat(2,40px);gap:4px}.app .canvas-tools button{width:40px;height:40px}.app .canvas-tools button:first-child{margin:0}}
 @media(max-height:540px) and (min-width:681px){.app .header{height:58px;left:max(20px,env(safe-area-inset-left,0px));right:max(20px,env(safe-area-inset-right,0px))}.app .brand-name{font-size:22px}.app .brand-sub{display:none}.app .calendar-strip{top:calc(64px + env(safe-area-inset-top,0px));left:max(24px,env(safe-area-inset-left,0px));right:auto}.app .calendar-primary{font-size:19px}.app .calendar-date-button small{font-size:9px}.app .tree-view .panel-heading{top:calc(65px + env(safe-area-inset-top,0px));left:55%;right:max(20px,env(safe-area-inset-right,0px));height:44px}.app .tree-view .panel-heading>div:first-child{display:none}.app .tree-view .scope-switch{margin-left:auto}.app .main-topbar{left:max(18px,env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:none;width:280px;height:56px}.time-dock{left:auto;right:max(18px,env(safe-area-inset-right,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:none;width:330px}.time-settings summary{min-height:22px;padding:3px 12px}.app .living-timeline{padding:0 10px 8px;gap:5px}.app .timeline-play,.app #timeline-speed{min-height:36px}.time-settings-body{max-height:calc(100dvh - 120px);padding:14px}.app .selected-person{left:max(18px,env(safe-area-inset-left,0px));bottom:calc(79px + env(safe-area-inset-bottom,0px));width:240px;padding:9px}.app .canvas-tools{right:max(18px,env(safe-area-inset-right,0px));bottom:calc(96px + env(safe-area-inset-bottom,0px));display:flex;gap:6px}.app .canvas-tools button:first-child{margin:0}.app .canvas-caption{display:none}.app .attention-banner{display:none}.app .attention-inbox-button{top:calc(115px + env(safe-area-inset-top,0px));left:max(24px,env(safe-area-inset-left,0px))}.app:before{height:130px}.app:not(.immersive-tree) .workspace{top:58px;bottom:78px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* 1.22: anchor to the actual screen and consume each safe inset only once. */
+.app,.app.immersive-tree{position:fixed;inset:0;height:auto;min-height:0}
+@media(max-width:680px){
+ .app{--ui-bottom:max(8px,env(safe-area-inset-bottom,0px));--dock-bottom:calc(var(--ui-bottom) + 66px)}
+ .app .header{height:54px;padding:4px 0;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));grid-template-columns:1fr auto;gap:10px}
+ .app .brand{gap:5px}.app .brand-symbol{width:25px;height:31px}.app .brand-name{font-size:21px;letter-spacing:2.5px}.app .brand-sub{display:none}
+ .app .year-display{display:none}.app .header-actions{gap:8px}.app .icon-button{width:44px;height:44px}
+ .app .calendar-strip{top:calc(59px + env(safe-area-inset-top,0px));left:max(18px,env(safe-area-inset-left,0px));right:18px}
+ .app .calendar-primary{font-size:22px}.app .calendar-date-button{gap:5px;min-height:43px}.app .calendar-date-button small{display:block;font-size:10px;letter-spacing:0}
+ .app .tree-view .panel-heading{top:calc(112px + env(safe-area-inset-top,0px));left:max(18px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));height:44px}
+ .app .tree-view .panel-heading h1{font-size:11px;letter-spacing:.8px}.app .tree-view .panel-subtext{font-size:9px;max-width:220px}
+ .app:before{height:calc(184px + env(safe-area-inset-top,0px))}
+ .app .main-topbar{bottom:var(--ui-bottom);height:56px;width:calc(100% - 28px);max-width:440px;border-radius:21px}
+ .app .time-dock{width:calc(100% - 28px);max-width:440px}
+ .app .selected-person{left:16px;bottom:calc(var(--ui-bottom) + 176px);width:min(280px,calc(100% - 92px));padding:11px}
+ .app .canvas-tools{right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--ui-bottom) + 184px)}
+ .app .canvas-caption{left:18px;bottom:calc(var(--ui-bottom) + 255px);font-size:9px}
+ .app .attention-inbox-button{top:calc(166px + env(safe-area-inset-top,0px));left:18px}
+ .app .attention-banner{bottom:calc(var(--ui-bottom) + 279px);left:16px;width:min(280px,calc(100% - 92px))}
+ .app:not(.immersive-tree) .workspace{top:calc(59px + env(safe-area-inset-top,0px));bottom:calc(var(--ui-bottom) + 66px)}
+ .app.zen-tree .canvas-tools{bottom:var(--ui-bottom)}
+}
+@media(max-width:360px){.app .calendar-primary{font-size:20px}.app .calendar-date-button small{font-size:9px}.app .tree-view .panel-subtext{max-width:174px;font-size:8px}.app .brand-name{font-size:20px}}
