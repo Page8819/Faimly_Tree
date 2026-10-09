@@ -1,0 +1,52 @@
+name: Deploy LEGACY to Cloudflare
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: legacy-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Validate and deploy familytree-584d
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate gameplay
+        run: |
+          find public -maxdepth 1 -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+          node --test tests/*.test.cjs
+      - name: Check Cloudflare credentials
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Cloudflare deployment requires repository Actions secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (or CF_API_TOKEN and CF_ACCOUNT_ID)."
+            exit 1
+          fi
+      - name: Deploy to original Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+      - name: Verify deployed app version
+        run: |
+          set -eu
+          URL='https://familytree-584d.ianpageebersole-ca8.workers.dev/version.json'
+          for i in 1 2 3 4 5 6; do
+            if curl --fail --silent --show-error --max-time 12 "$URL" -o /tmp/legacy-version.json; then
+              node -e "const v=require('/tmp/legacy-version.json');if(v.version!=='1.23.0')process.exit(1);console.log('Live LEGACY',v.version)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Production URL is not serving the expected app version."
+          exit 1
