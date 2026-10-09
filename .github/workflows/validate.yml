@@ -23,6 +23,7 @@ jobs:
           node --check public/medicine.js
           node --check public/education.js
           node --check public/careers.js
+          node --check public/living-context.js
           node --test tests/*.test.cjs
       - name: Confirm static entry points
         run: |
