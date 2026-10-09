@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict');
-require('../public/living-context.js');const L=globalThis.LEGACY_LIVING_CONTEXT;
+require('../public/medicine.js');require('../public/living-context.js');const L=globalThis.LEGACY_LIVING_CONTEXT;
 const p=(id,age=40,wealth=10000)=>({id,first:id,birthYear:2030-age,wealth,jobLevel:1,parentIds:[],adoptiveParentIds:[],formerPartners:[],bonds:{},medical:{conditions:[]},finance:{consumerDebt:0,mortgage:0},career:{jobId:'service'}});
 test('illness of actual relative produces a named care situation',()=>{
  const robert=p('robert',69,8600),elaine=p('elaine',67,1000);robert.partnerId='elaine';elaine.partnerId='robert';
