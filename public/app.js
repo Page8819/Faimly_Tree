@@ -429,7 +429,7 @@ function renderCalendar(){
  $('#header-day-count').textContent='DAY '+String(count).padStart(3,'0')+' / '+(LEGACY_CALENDAR.leap(parsed.year)?366:365);
  $('#calendar-date').textContent=LEGACY_CALENDAR.dateLabel(c.date);
  $('#calendar-weekday').textContent=LEGACY_CALENDAR.weekdayLabel(c.date)+' · '+c.daysElapsed.toLocaleString()+' days elapsed';
- $('#calendar-clock').textContent=summary?calendarTime(summary.minutes)+' '+summary.abbreviation+' · '+p.city:calendarTime(c.minutes);
+ $('#calendar-clock').textContent=summary?((summary.date!==c.date?summary.date+' · ':'')+calendarTime(summary.minutes)+' '+summary.abbreviation+' · '+p.city):calendarTime(c.minutes);
  $('#calendar-work').textContent=summary?(summary.sector+' · '+summary.reason+(summary.scheduled?' · '+calendarTime(summary.start)+'–'+calendarTime(summary.end):'')):'No selected character';
  $('#calendar-holiday').textContent=summary?.holiday||'';
  $('#calendar-detail').setAttribute('aria-label','Open calendar details for '+c.date);
