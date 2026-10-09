@@ -376,22 +376,22 @@
 .attention-dismiss:focus-visible,.attention-go:focus-visible,.attention-inbox-button:focus-visible{outline:2px solid #f3d499;outline-offset:-2px}
 .person-attention-tag{color:#e8bf7b;font-size:10px;font-weight:760;white-space:nowrap}
 
-/* The inbox is paged rather than scrollable, retaining the phone-safe layout. */
+/* Family updates: one smooth iPhone-friendly scroll area; header and actions stay visible. */
 .modal-backdrop.attention-inbox-backdrop{
  display:flex;align-items:center;justify-content:center;
  padding:max(67px,calc(env(safe-area-inset-top,0px) + 12px)) max(12px,env(safe-area-inset-right,0px))
  max(16px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))
 }
-.modal.attention-inbox-dialog{width:min(100%,520px);max-height:100%;overflow:hidden;padding:15px 17px}
-.attention-inbox-sheet{display:flex;flex-direction:column;min-height:0;max-height:100%;gap:9px}
+.modal.attention-inbox-dialog{width:min(100%,520px);height:min(78dvh,760px);max-height:100%;overflow:hidden;padding:15px 17px}
+.attention-inbox-sheet{display:flex;flex-direction:column;min-height:0;height:100%;max-height:100%;gap:9px}
 .attention-inbox-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .attention-inbox-title h2{margin:4px 0 0;font-size:24px}
 .attention-inbox-close{flex:none;width:37px;height:37px;background:#28443e;color:#f1e9da;border:1px solid #567266;border-radius:10px}
 .modal p.attention-inbox-intro{font-size:11px;line-height:1.35;margin:0;color:#b7cbbf}
-.attention-inbox-items{display:grid;grid-template-rows:repeat(4,minmax(0,1fr));gap:7px;min-height:0;flex:1}
+.attention-inbox-items{display:flex;flex-direction:column;gap:8px;flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;scrollbar-width:thin;scrollbar-color:#78968b transparent;padding:1px 3px 8px 1px}
 .attention-list-item{
  display:flex;gap:9px;align-items:center;text-align:left;
- min-width:0;min-height:64px;padding:9px 11px;color:#f5f0e4;background:#1d3433;
+ flex-shrink:0;min-width:0;min-height:72px;padding:9px 11px;color:#f5f0e4;background:#1d3433;
  border:1px solid #3f5953;border-radius:10px;touch-action:manipulation
 }
 .attention-list-item:hover,.attention-list-item:focus-visible{border-color:#e1bd77}
@@ -402,9 +402,9 @@
 .attention-list-copy small{font-size:10px;color:#d8ba82}
 .attention-list-copy em{font-size:10px;color:#b7c9bf;font-style:normal;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .attention-list-arrow{font-size:18px;color:#dbb87c}
-.attention-inbox-foot{display:flex;align-items:center;justify-content:space-between;gap:7px;font-size:11px;color:#b6c7b9;min-height:28px}
-.attention-inbox-foot button,.attention-inbox-bottom button{background:#24413b;border:1px solid #557165;color:#dce9d9;border-radius:9px;padding:8px 11px;font-size:11px}
-.attention-inbox-foot button:disabled,.attention-inbox-bottom button:disabled{opacity:.35}
+.attention-inbox-foot{display:flex;align-items:center;justify-content:space-between;gap:7px;font-size:11px;color:#b6c7b9;min-height:24px;flex:none}
+.attention-inbox-bottom button{background:#24413b;border:1px solid #557165;color:#dce9d9;border-radius:9px;padding:8px 11px;font-size:11px}
+.attention-inbox-bottom button:disabled{opacity:.35}
 .attention-inbox-bottom{display:flex;justify-content:center}
 .attention-inbox-bottom button{width:100%;background:transparent;color:#b4c3b7;border-color:#374f49}
 @media(max-width:680px){
@@ -419,7 +419,7 @@
 @media(max-height:620px){
  .attention-inbox-sheet{gap:5px}
  .attention-inbox-title h2{font-size:18px}
- .attention-list-item{min-height:43px;padding:4px 8px}
+ .attention-list-item{min-height:48px;padding:5px 8px}
  .attention-list-copy em{-webkit-line-clamp:1}
- .attention-inbox-foot button,.attention-inbox-bottom button{padding:5px 8px}
+ .attention-inbox-bottom button{padding:5px 8px}
 }
