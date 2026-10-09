@@ -158,7 +158,7 @@ function simulateOneYear(){state.year++;
 function related(p){const ps=new Set([...(p.parentIds||[]),...(p.adoptiveParentIds||[])]);const siblingIds=ps.size?persons().filter(q=>q.id!==p.id&&[...(q.parentIds||[]),...(q.adoptiveParentIds||[])].some(id=>ps.has(id))).map(q=>q.id):[];let ids=[...ps,...kids(p).map(v=>v.id),...siblingIds,...(p.partnerId?[p.partnerId]:[]),...(p.formerPartners||[])];return [...new Set(ids)].map(get).filter(Boolean)}
 
 const LIFE_CHOICES={
- launch:{tag:'COMING OF AGE',title:'Your future begins today.',text:'Adulthood brings opportunity—and responsibility. How will you start building your own life?',options:[['college','Go to college','Borrow or spend $14,000 to study and gain qualifications.'],['trade','Learn a trade','Invest $2,500 in practical skills and begin earning.'],['work','Start working','Earn right away and begin building savings.']]},
+ launch:{tag:'COMING OF AGE',title:'Your future begins today.',text:'Adulthood brings opportunity—and responsibility. How will you start building your own life?',options:[['college','Go to college','Enroll in a multi-year degree program, with tuition and possible student debt.'],['trade','Learn a trade','Enter a multi-year apprenticeship with tuition and practical training.'],['work','Start working','Build savings and career experience immediately.']]},
  direction:{tag:'CROSSROADS',title:'Where does your ambition lead?',text:'An opportunity could change your career and finances. Do you take a risk or protect what you have?',options:[['promotion','Pursue a promotion','A better career is possible, but not guaranteed.'],['business','Start a business','Risk $7,500 on a new venture with an uncertain payoff.'],['stable','Choose stability','Focus on saving money and protecting your personal life.']]},
  family:{tag:'FAMILY MATTERS',title:'Family needs your attention.',text:'Other people rely on you, but you also have a life of your own. Where will your effort go?',options:[['financial','Help financially','Share up to $2,500 with a relative who needs it.'],['quality','Spend time together','Strengthen an important family relationship.'],['independent','Focus on yourself','Preserve your resources and pursue independence.']]},
  midlife:{tag:'A NEW CHAPTER',title:'It is time to reconsider your path.',text:'Life has changed. What kind of future will you prepare for?',options:[['retrain','Retrain for a new career','Pay $4,000 to develop skills that may pay off.'],['invest','Build a financial cushion','Make a long-term investment with an uncertain result.'],['balance','Prioritize your wellbeing','Ease the pressure and rebuild family connections.']]},
@@ -209,16 +209,16 @@ function resolveLifeChoice(action){
   if(!story)return;
   result=story.result;others=story.others||[];
  }else switch(action){
- case 'college':p.education=Math.min(4,p.education+2);changeMoney(-14000);result='Completed advanced education, taking on $14,000 in costs.';break;
- case 'trade':p.education=Math.min(4,p.education+1);p.jobLevel=Math.max(p.jobLevel,2);changeMoney(-2500);result='Learned a skilled trade and entered the workforce.';break;
+ case 'college':{const target=LEGACY_EDUCATION.has(p,'hs')?'bachelor':'ged';const r=LEGACY_EDUCATION.enroll(p,target,age(p),state.year);result=r.ok?r.message:r.message+' Explore other programs in the School tab.';}break;
+ case 'trade':{const target=LEGACY_EDUCATION.has(p,'hs')?'trade':'ged';const r=LEGACY_EDUCATION.enroll(p,target,age(p),state.year);result=r.message;}break;
  case 'work':p.jobLevel=Math.max(p.jobLevel,1);changeMoney(4500);result='Started working immediately and saved $4,500.';break;
- case 'promotion':if(p.jobLevel<6&&chance(fortune)){p.jobLevel++;changeMoney(3000);result='Earned a promotion and a $3,000 bonus.';}else{result='Pursued a promotion, but the opportunity did not work out.';}break;
+ case 'promotion':{const r=LEGACY_CAREERS.promote(p,state.year,()=>chance(fortune)?0:1);if(r.ok)changeMoney(3000);result=r.message;}break;
  case 'business':changeMoney(-7500);if(chance(Math.max(.2,fortune-.12+(p.traits.openness-50)/300))){const gains=int(12000,28000);changeMoney(gains);result='The new venture succeeded, returning '+money(gains)+' after the initial investment.';}else result='The new venture struggled and the $7,500 startup investment was lost.';break;
  case 'stable':changeMoney(3500);result='Chose a steadier path and accumulated $3,500 in savings.';break;
  case 'financial':if(kin.length){const q=kin[0],amount=Math.max(0,Math.min(2500,p.wealth));changeMoney(-amount);q.wealth+=amount;bond(p,q,14);others=[q.id];result=amount?'Shared '+money(amount)+' with '+full(q)+', strengthening their relationship.':'Had little money to spare, but reached out and strengthened a family bond.';}else result='Tried to help family, but no living close relatives were available.';break;
  case 'quality':if(kin.length){const q=kin[0];bond(p,q,22);others=[q.id];result='Spent meaningful time with '+full(q)+' and became closer.';}else result='Made room for future friendships and connections.';break;
  case 'independent':changeMoney(1800);if(kin.length){bond(p,kin[0],-5);others=[kin[0].id];}result='Prioritized personal goals and built an additional $1,800 in savings.';break;
- case 'retrain':changeMoney(-4000);p.education=Math.min(4,p.education+1);if(chance(fortune)&&p.jobLevel<6)p.jobLevel++;result='Invested $4,000 in retraining and gained new skills.';break;
+ case 'retrain':{const target=LEGACY_EDUCATION.has(p,'hs')?'it':'ged';const r=LEGACY_EDUCATION.enroll(p,target,age(p),state.year);result=r.message;}break;
  case 'invest':changeMoney(-3500);{const returns=chance(fortune)?int(4500,10000):int(0,2000);changeMoney(returns);result=returns>=3500?'A long-term investment paid off, returning '+money(returns)+'.':'The investment underperformed, returning only '+money(returns)+'.';}break;
  case 'balance':if(kin.length){bond(p,kin[0],18);others=[kin[0].id];}result='Chose a less pressured life and focused on relationships.';break;
  case 'retire':p.retired=true;result='Retired from full-time work. Future income will be lower, with more time for family.';break;
@@ -256,14 +256,9 @@ function decide(action){
   else if(age(p)>=21&&age(q)>=21){const baby=birth(p,q,true);if(!baby){toast('Prototype population limit reached. Export this family to preserve it.');return}toast(`${baby.first} joined the family through adoption.`);needsFit=true}
   else toast('Neither a biological birth nor adoption is available currently.');
  } else if(action==='career'){
-  if(age(p)<18||age(p)>75){toast('This action is available during working adulthood.');return}
-  if(p.jobLevel>=6){p.wealth+=1200;toast('Already at the highest career level.');}
-  else if(chance(state.realism==='casual'?.95:.7)){p.jobLevel++;p.wealth+=int(700,3500);addEvent(state.year,'career',`${full(p)} advanced their career through a new opportunity.`,[p.id]);toast('Career advanced.')}
-  else{addEvent(state.year,'career',`${full(p)} pursued a promotion, without success.`,[p.id]);toast('The promotion did not work out this time.')}
+  showPersonStats(p.id,'career');return;
  } else if(action==='educate'){
-  if(age(p)<16||age(p)>65||p.education>=4){toast('Further education is unavailable.');return}
-  if(p.wealth<2500){toast('Requires at least $2,500 in available savings.');return}
-  p.wealth-=2500;p.education++;addEvent(state.year,'education',`${full(p)} invested $2,500 in further education.`,[p.id]);toast('Education improved.');
+  showPersonStats(p.id,'education');return;
  } else if(action==='move'){
   if(age(p)<18){toast('Must be an adult to move independently.');return}
   const old=p.city;let next=cities[(cities.indexOf(old)+1+int(0,3))%cities.length];p.city=next;p.wealth-=2100;
