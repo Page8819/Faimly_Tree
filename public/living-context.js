@@ -83,6 +83,17 @@
    case 'retirement:retire':p.retired=true;text='Retired, with lower future employment income.';break;
    default:return null;
   }
+  // Dialogue and requests are evaluated by NPCs rather than granting automatic consent.
+  const psychology=root.LEGACY_LIVING_PSYCHOLOGY;
+  if(psychology&&['care:family','debt:support','conflict:talk','conflict:mediate'].includes(event.kind+':'+option)){
+   const sought=event.kind==='care'&&other?other:p;
+   const helper=event.kind==='conflict'?other:psychology.chooseHelpers(sought,people,year).find(x=>x.id!==p.id);
+   if(helper){
+    const request=psychology.negotiate({actor:helper,target:sought,people,year,action:option==='talk'?'care':'support',rnd,controlledId:p.id});
+    text+=' '+request.text;
+    if(event.kind==='conflict'){relationship=request.accepted?12:-5;}
+   }else text+=' No other eligible relative was available to help.';
+  }
   p.wealth-=cost;
   if(other&&relationship&&root.LEGACY_RELATIONSHIPS)root.LEGACY_RELATIONSHIPS.affect(p,other,relationship,year,'Living decision');
   p.livingCooldowns=p.livingCooldowns||{};p.livingCooldowns[event.kind]=year;
