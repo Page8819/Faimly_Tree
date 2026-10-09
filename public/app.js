@@ -41,7 +41,7 @@ function createPerson({first,last,sex,birthYear,gen=0,parentIds=[],adoptiveParen
  const p={id:id(),first,last,sex,birthYear,deathYear:null,gen,parentIds:[...parentIds],adoptiveParentIds:[...adoptiveParentIds],inFamily,city,
  partnerId:null,partnerSince:null,formerPartners:[],education:education??(birthYear<=state.year-25?int(1,3):0),jobLevel:jobLevel??(birthYear<=state.year-20?int(1,3):0),wealth:wealth??int(300,6500),
  traits:makeTraits(parentIds),bonds:{},eyeTint:pick(['hazel','brown','brown','blue','green']),hairTint:pick(['brown','black','blond','auburn']),memory:[]};
- LEGACY_HUMAN.ensure(p,state.year-birthYear);LEGACY_ECONOMY.ensure(p);LEGACY_MEDICINE.ensure(p);state.people[p.id]=p;return p;
+ LEGACY_HUMAN.ensure(p,state.year-birthYear);LEGACY_ECONOMY.ensure(p);LEGACY_MEDICINE.ensure(p);LEGACY_EDUCATION.ensure(p);state.people[p.id]=p;return p;
 }
 function addEvent(year,type,message,personIds=[]){state.events.push({id:state.nextEvent++,year,type,message,personIds:[...new Set(personIds.filter(Boolean))]})}
 function bond(a,b,value){LEGACY_RELATIONSHIPS.affect(a,b,value,state.year,'family interaction')}
@@ -99,9 +99,7 @@ function incomeFor(p){const base=[0,25000,41000,61000,92000,135000,185000];retur
 function yearlyEconomy(p){
  const a=age(p);if(a<18)return;
  LEGACY_CONSEQUENCES.annual(p,a,state.year);
- if(a<28&&p.education<3&&chance(.13)){
-  p.education++;if(chance(.3))addEvent(state.year,'education',full(p)+' completed additional education.',[p.id]);
- }
+ for(const message of LEGACY_EDUCATION.annual(p,a,state.year,rnd))addEvent(state.year,'education',full(p)+' '+message,[p.id]);
  if(!p.retired&&a<67&&chance(LEGACY_CONSEQUENCES.careerOdds(p)*LEGACY_HUMAN.careerModifier(p))&&p.jobLevel<6){
   p.jobLevel++;addEvent(state.year,'career',full(p)+' advanced their career.',[p.id]);
  }
@@ -325,7 +323,7 @@ function showPersonStats(id,tab='overview',page=0){
  if(state.pendingChoice||state.pendingSuccession)return;
  const p=get(id);if(!p)return;
  selectPerson(id);
- const allowed=['overview','health','stats','family','actions','history'];
+ const allowed=['overview','health','education','stats','family','actions','history'];
  if(!allowed.includes(tab))tab='overview';
  const parents=(p.parentIds||[]).map(get).filter(Boolean);
  const adopters=(p.adoptiveParentIds||[]).map(get).filter(Boolean);
@@ -371,6 +369,15 @@ function showPersonStats(id,tab='overview',page=0){
     title('Recent care')+'<p class="person-page-description">'+esc(log.at(-1)?.message||'No previous medical visits.')+'</p>';
   }
   body+=pageControls('health',which,Math.max(1,Math.ceil(cases.length/3)+1));
+ }else if(tab==='education'){
+  const info=LEGACY_EDUCATION.details(p,age(p)),available=info.programs,perPage=4;
+  const pages=Math.max(1,Math.ceil(available.length/perPage));page=Math.max(0,Math.min(page,pages-1));
+  const credentialNames=info.credentials.map(c=>c.name);
+  const header=info.current?'Current: '+info.current.name+' · '+info.current.progress+' / '+info.current.years+' years':'Not currently enrolled';
+  body=title('Education & qualifications')+'<div class="person-page-description">'+esc(credentialNames.length?credentialNames.join(' · '):'No formal qualifications yet')+'</div>'+
+  title('Current studies')+'<div class="person-page-summary">'+esc(header)+'</div>'+
+  title('Choose an education pathway')+'<div class="person-path-cards">'+available.slice(page*perPage,(page+1)*perPage).map(prog=>
+    '<button class="person-path-card" data-education-id="'+prog.id+'" '+(!alive(p)||state.mode==='individual'&&state.controlledId!==p.id||!prog.eligibility.ok?'disabled':'')+'><span><strong>'+esc(prog.name)+'</strong><small>'+esc(prog.category)+' · '+prog.years+'yr · '+money(prog.cost)+'</small></span><small>'+esc(prog.eligibility.ok?'Enroll →':prog.eligibility.reason)+'</small></button>').join('')+'</div>'+pageControls('education',page,pages);
  }else if(tab==='stats'){
   const facts=[
    ['Birth year',p.birthYear],['Death year',p.deathYear||'—'],['Generation',p.gen+1],['Annual income',age(p)>=18&&!p.retired?money(incomeFor(p)):'—'],
@@ -406,7 +413,7 @@ function showPersonStats(id,tab='overview',page=0){
  function pageControls(which,current,total){
   return total>1?'<div class="person-page-pagination"><button data-page="-1" '+(current===0?'disabled':'')+' aria-label="Previous '+which+' page">← Prev</button><span>Page '+(current+1)+' of '+total+'</span><button data-page="1" '+(current===total-1?'disabled':'')+' aria-label="Next '+which+' page">Next →</button></div>':'';
  }
- const tabs=[['overview','Overview'],['health','Health'],['stats','Stats'],['family','Family'],['actions','Actions'],['history','History']];
+ const tabs=[['overview','Overview'],['health','Health'],['education','School'],['stats','Stats'],['family','Family'],['actions','Actions'],['history','History']];
  const tabNav=tabs.map(([key,name])=>'<button role="tab" data-person-tab="'+key+'" aria-selected="'+(tab===key)+'" class="'+(tab===key?'active':'')+'">'+name+'</button>').join('');
  showModal('<div class="person-sheet person-sheet-compact"><div class="person-sheet-top"><div><div class="eyebrow">FAMILY RECORD · '+esc(p.id.toUpperCase())+' · '+esc(yearSpan(p))+'</div><div class="person-sheet-topname">'+esc(full(p))+'</div></div><button id="person-sheet-close" class="person-sheet-close" type="button" aria-label="Close person details">✕</button></div><nav class="person-sheet-tabs" role="tablist" aria-label="Character details">'+tabNav+'</nav><div class="person-sheet-screen" role="tabpanel" aria-label="'+esc(tab)+'">'+body+'</div></div>');
  $('#modal-backdrop').classList.add('person-profile-backdrop');
@@ -416,6 +423,12 @@ function showPersonStats(id,tab='overview',page=0){
  $$('[data-person]').forEach(b=>b.onclick=()=>showPersonStats(b.dataset.person));
  $$('[data-page]').forEach(b=>b.onclick=()=>showPersonStats(id,tab,page+Number(b.dataset.page)));
  $$('[data-action]').forEach(b=>b.onclick=()=>{decide(b.dataset.action);if(!state.pendingChoice&&!state.pendingSuccession)showPersonStats(id,'actions');});
+ $$('[data-education-id]').forEach(b=>b.onclick=()=>{
+  if(state.mode==='individual'&&id!==state.controlledId){toast('Take control to enroll in education.');return;}
+  const r=LEGACY_EDUCATION.enroll(p,b.dataset.educationId,age(p),state.year);
+  if(r.ok){addEvent(state.year,'education',full(p)+': '+r.message,[p.id]);saveSoon();render();showPersonStats(id,'education',page);}
+  toast(r.message);
+ });
  $$('[data-medical-care]').forEach(b=>b.onclick=()=>{
   if(state.mode==='individual'&&id!==state.controlledId){toast('Take control before choosing medical care.');return;}
   const result=LEGACY_MEDICINE.care(p,b.dataset.medicalCare,state.year,rnd);
