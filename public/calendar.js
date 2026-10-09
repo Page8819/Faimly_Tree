@@ -178,13 +178,24 @@
  };
  function schedule(p,state,jobCatalog={}){
   const here=atPerson(state,p),date=here.date,parsed=parse(date),day=weekday(parsed.year,parsed.month,parsed.day);
-  const job=jobCatalog[p?.career?.jobId],sector=job?.sector||'Business',pattern=schedules[sector]||schedules.Business;
+  const jobId=p?.career?.jobId;
+  const job=jobCatalog[jobId],sector=job?.sector||'Business',base=schedules[sector]||schedules.Business;
+  // Worker schedules are modeled shifts, not the opening hours of every employer in a sector.
+  let pattern=base;
+  if(jobId==='service')pattern={...base,days:[0,2,3,5,6],start:10*60,end:18*60};
+  else if(jobId==='supervisor')pattern={...base,days:[1,2,4,5,6],start:11*60,end:19*60};
+  else if(jobId==='store_manager')pattern={...base,days:[1,2,3,4,5],start:9*60,end:18*60};
+  else if(jobId==='nurse')pattern={...base,days:[1,3,5],start:7*60,end:19*60};
+  else if(jobId==='emt')pattern={...base,days:[0,2,4],start:7*60,end:19*60};
+  else if(jobId==='physician')pattern={...base,days:[1,2,3,4,5],start:8*60,end:17*60,holiday:'closed'};
+  else if(jobId==='chef')pattern={...base,days:[0,3,4,5,6],start:15*60,end:23*60};
+  else if(jobId==='entrepreneur')pattern={...base,days:[1,2,3,4,5,6],start:9*60,end:19*60,holiday:'open'};
   const holidayName=holiday(date,p?.city);
   if(!p||p.deathYear||p.retired)return {...here,sector,holiday:holidayName,working:false,scheduled:false,reason:p?.deathYear?'Remembered':'Retired',hours:0};
   if(!job||parsed.year-p.birthYear<job.minAge)return {...here,sector,holiday:holidayName,working:false,scheduled:false,reason:'Not employed',hours:0};
   if(!pattern.days.includes(day))return {...here,sector,holiday:holidayName,working:false,scheduled:false,reason:'Scheduled day off',hours:0};
-  if(sector==='Education'&&(parsed.month===7||parsed.month===8))return {...here,sector,holiday:holidayName,working:false,scheduled:false,reason:'Summer break',hours:0};
-  if(holidayName&&pattern.holiday==='closed')return {...here,sector,holiday:holidayName,working:false,scheduled:false,reason:'Holiday leave',hours:0};
+  if(sector==='Education'&&(here.country==='AU'?(parsed.month===12||parsed.month===1):(parsed.month===7||parsed.month===8)))return {...here,sector,holiday:holidayName,working:false,scheduled:false,reason:'Summer break',hours:0};
+  if(holidayName&&(pattern.holiday==='closed'||(sector==='Retail'&&/Christmas Day|Thanksgiving/i.test(holidayName))))return {...here,sector,holiday:holidayName,working:false,scheduled:false,reason:'Holiday leave',hours:0};
   // Essential healthcare remains operational on public holidays. Retail/hospitality may operate.
   const working=here.minutes>=pattern.start&&here.minutes<pattern.end;
   return {...here,sector,holiday:holidayName,working,scheduled:true,reason:working?'On shift':here.minutes<pattern.start?'Shift later today':'Shift finished',
