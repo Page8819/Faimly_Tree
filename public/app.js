@@ -333,8 +333,8 @@ function showPersonStats(id,tab='overview',page=0){
    ['Family involvement',life.familyTime||0],['Biological parents',parents.length],['Adoptive parents',adopters.length],['Children',children.length]
   ];
   const traits=[['Curiosity',p.traits?.openness],['Discipline',p.traits?.conscientiousness],['Sociability',p.traits?.extraversion],['Cooperation',p.traits?.agreeableness],['Emotional sensitivity',p.traits?.emotionality]];
-  body=title('Wellbeing & needs')+'<div class="person-page-traits">'+[['Physical health',needs.physical],['Mental wellbeing',needs.mental],['Energy',needs.energy],['Stress',needs.stress],['Resilience',needs.resilience],['Agency',needs.agency]].map(([a,b])=>trait(a,b)).join('')+'</div>'+title('Personality · five traits')+'<div class="person-page-traits">'+traits.map(([a,b])=>trait(a,b)).join('')+'</div>'+
-   title('Complete character statistics')+'<div class="person-page-facts">'+facts.map(([a,b])=>metric(a,b)).join('')+'</div>';
+  body=(page===0?title('Wellbeing & needs')+'<div class="person-page-traits">'+[['Physical health',needs.physical],['Mental wellbeing',needs.mental],['Energy',needs.energy],['Stress',needs.stress],['Resilience',needs.resilience],['Agency',needs.agency]].map(([a,b])=>trait(a,b)).join('')+'</div>'+title('Personality · five traits')+'<div class="person-page-traits">'+traits.map(([a,b])=>trait(a,b)).join('')+'</div>':
+   title('Career, learning & finances')+'<div class="person-page-facts">'+facts.map(([a,b])=>metric(a,b)).join('')+'</div>')+pageControls('stats',Math.max(0,Math.min(1,page)),2);
  }else if(tab==='family'){
   const size=6,pages=Math.max(1,Math.ceil(rel.length/size));page=Math.max(0,Math.min(page,pages-1));
   body=title('Family connections · '+rel.length)+
