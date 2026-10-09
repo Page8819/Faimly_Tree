@@ -587,6 +587,10 @@ function advanceCalendar(unit,amount=1,quiet=false){
 }
 
 function renderProfile(){const p=get(state.selectedId);if(!p)return;
+ $('#selected-name').textContent=full(p);
+ $('#selected-avatar').textContent=initials(p);
+ $('#selected-meta').textContent=ages(p)+' · '+p.city;
+ $('#selected-person').setAttribute('aria-label','Open '+full(p)+"'s life and decisions");
  const parents=p.parentIds.map(get).filter(Boolean),adopters=p.adoptiveParentIds.map(get).filter(Boolean),children=kids(p),q=partner(p);
  const mine=state.mode==='family'||(p.id===state.controlledId);
  const canAct=alive(p)&&mine;
@@ -818,14 +822,32 @@ function layoutGraph(){const visible=visiblePeople();const groups=new Map();for(
   if(p.partnerId&&ids.has(p.partnerId)&&p.id<p.partnerId){sceneEdges.push({a:n,b:placements.get(p.partnerId),kind:'partner'});}
  }
  $('#tree-subhead').textContent=scope==='all'&&persons().length>250?`Showing 250 of ${fmtN(persons().length)} lives. Use Focus for close relatives.`:`${fmtN(scene.length)} visible people · ${scope==='focus'?'Selected family circle':'Recorded family network'}`;
- if(needsFit){fitScene();needsFit=false}
+ if(needsFit){fitScene();if(scope==='focus'&&camera.scale<.68)centerPerson();needsFit=false}
  drawGraph();
 }
 function setCanvasSize(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));ctx.setTransform(dpr,0,0,dpr,0,0);return {w:rect.width,h:rect.height};}
+function treeViewport(){
+ const r=canvas.getBoundingClientRect(),zen=$('#app').classList.contains('zen-tree');
+ let top=zen?28:Math.min(205,r.height*.28),bottom=zen?76:Math.min(220,r.height*.3),left=24,right=24;
+ if(!zen&&r.width>680&&r.height<540){top=135;bottom=95;}
+ if(!zen&&typeof window.getComputedStyle==='function'){
+  const heading=$('.tree-view .panel-heading').getBoundingClientRect();
+  const dock=$('.time-dock').getBoundingClientRect();
+  top=Math.max(top,heading.bottom-r.top+20);
+  if(dock.top>r.top&&dock.left<r.right&&dock.right>r.left)bottom=Math.max(bottom,r.bottom-dock.top+90);
+  if(r.width<=680){const selected=$('#selected-person').getBoundingClientRect();if(selected.top>r.top)bottom=Math.max(bottom,r.bottom-selected.top+18);}
+ }
+ return {x:left,y:top,w:Math.max(80,r.width-left-right),h:Math.max(80,r.height-top-bottom)};
+}
 function fitScene(){const r=canvas.getBoundingClientRect();if(!scene.length||!r.width||!r.height)return;let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
  for(const n of scene){minX=Math.min(minX,n.x-n.w/2);maxX=Math.max(maxX,n.x+n.w/2);minY=Math.min(minY,n.y-n.h/2);maxY=Math.max(maxY,n.y+n.h/2)}
- const sx=(r.width-65)/(maxX-minX+40),sy=(r.height-70)/(maxY-minY+40);camera.scale=Math.max(.16,Math.min(1.22,sx,sy));camera.x=r.width/2-((minX+maxX)/2)*camera.scale;camera.y=r.height/2-((minY+maxY)/2)*camera.scale;
+ const v=treeViewport(),sx=v.w/(maxX-minX+30),sy=v.h/(maxY-minY+30);
+ camera.scale=Math.max(.12,Math.min(1.35,sx,sy));camera.x=v.x+v.w/2-((minX+maxX)/2)*camera.scale;camera.y=v.y+v.h/2-((minY+maxY)/2)*camera.scale;
 }
+function centerPerson(){const n=scene.find(n=>n.p.id===state.selectedId);if(!n)return;const v=treeViewport();camera.scale=Math.max(.95,camera.scale);camera.x=v.x+v.w/2-n.x*camera.scale;camera.y=v.y+v.h/2-n.y*camera.scale;drawGraph();}
+function zoomTree(factor){const v=treeViewport(),x=v.x+v.w/2,y=v.y+v.h/2,wx=(x-camera.x)/camera.scale,wy=(y-camera.y)/camera.scale;camera.scale=Math.max(.12,Math.min(3,camera.scale*factor));camera.x=x-wx*camera.scale;camera.y=y-wy*camera.scale;drawGraph();}
+function toggleTreeFullscreen(force){const app=$('#app'),active=typeof force==='boolean'?force:!app.classList.contains('zen-tree');app.classList.toggle('zen-tree',active);$('#tree-fullscreen').setAttribute('aria-pressed',String(active));$('#tree-fullscreen').setAttribute('aria-label',active?'Restore game controls':'Hide controls for a full-screen tree');$('#tree-fullscreen').textContent=active?'↙':'⛶';requestAnimationFrame(()=>{fitScene();drawGraph()});}
+
 function roundPath(c,x,y,w,h,r){r=Math.min(r,w/2,h/2);c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath()}
 function ellipsis(s,max=19){return s.length>max?s.slice(0,max-1)+'…':s}
 function drawGraph(){if(!state)return;const {w,h}=setCanvasSize();ctx.clearRect(0,0,w,h);ctx.save();ctx.translate(camera.x,camera.y);ctx.scale(camera.scale,camera.scale);
@@ -864,7 +886,7 @@ function renderHistory(){const events=state.events.slice().sort((a,b)=>b.year-a.
  $('#history-list').innerHTML=events.map(e=>{let head='';if(e.year!==oldYear){oldYear=e.year;head=`<div class="history-year">${e.year}</div>`}const name=e.personIds.map(get).filter(Boolean)[0];return `${head}<div class="history-item"><span class="history-marker">${({birth:'✦',death:'◆',relationship:'♥',adoption:'✦',move:'⌁',career:'↑',education:'◈',inheritance:'◇',family:'♡',milestone:'✧',choice:'⚖',succession:'♜'}[e.type]||'●')}</span><button data-event-person="${name?.id||''}"><div class="history-name">${esc(e.type.toUpperCase())}</div>${esc(e.message)}</button></div>`}).join('')+(state.events.length>450?'<div class="empty-note">Showing the latest 450 events. All events remain in the saved game and exported backup.</div>':'');
  $$('#history-list [data-event-person]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.eventPerson)showPersonStats(b.dataset.eventPerson)}));
 }
-function setTab(tab){currentTab=tab;$('#app').classList.toggle('immersive-tree',tab==='tree');$$('.tab').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);b.setAttribute('aria-selected',String(b.dataset.tab===tab))});
+function setTab(tab){currentTab=tab;$('#time-settings').open=false;$('#app').classList.remove('zen-tree');$('#tree-fullscreen').setAttribute('aria-pressed','false');$('#tree-fullscreen').setAttribute('aria-label','Hide controls for a full-screen tree');$('#tree-fullscreen').textContent='⛶';$('#app').classList.toggle('immersive-tree',tab==='tree');$$('.tab').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);b.setAttribute('aria-selected',String(b.dataset.tab===tab))});
  $('#tree-view').classList.toggle('hidden',tab!=='tree');$('#people-view').classList.toggle('hidden',tab!=='people');$('#history-view').classList.toggle('hidden',tab!=='history');
  if(tab==='tree'){needsFit=true;requestAnimationFrame(()=>layoutGraph())}if(tab==='people')renderPeople();if(tab==='history')renderHistory();
 }
@@ -950,13 +972,16 @@ function bind(){
  $('#calendar-detail').onclick=showCalendarDetails;
  $('#timeline-play').onclick=()=>timelinePlay();
  $('#timeline-speed').onchange=()=>timelineSpeed($('#timeline-speed').value);
- $('#zoom-in').onclick=()=>{camera.scale=Math.min(3,camera.scale*1.24);drawGraph()};
- $('#zoom-out').onclick=()=>{camera.scale=Math.max(.12,camera.scale/1.24);drawGraph()};
+ $('#zoom-in').onclick=()=>zoomTree(1.24);
+ $('#zoom-out').onclick=()=>zoomTree(1/1.24);
+ $('#selected-person').onclick=()=>showPersonStats(state.selectedId);
+ $('#tree-fullscreen').onclick=()=>toggleTreeFullscreen();
+ $('#center-person').onclick=centerPerson;
  $('#zoom-fit').onclick=()=>{fitScene();drawGraph()};
  $('#menu-btn').onclick=menuModal;$('#new-world-btn').onclick=newWorldModal;
  $('#people-search').addEventListener('input',renderPeople);
  $('#modal-backdrop').addEventListener('click',e=>{if(e.target.id==='modal-backdrop')closeModal()});
- document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();$('#time-settings').open=false;if($('#app').classList.contains('zen-tree'))toggleTreeFullscreen(false);}});
  let pointers=new Map(),dragStart=null,pinch=null,holdTimer=null,holdTarget=null,holdConsumed=false;
  const LONG_PRESS_MS=520;
  const getPoint=e=>{const r=canvas.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top}};
@@ -984,7 +1009,7 @@ function bind(){
    }
   }else{
    cancelHold();
-   if(pointers.size===2){const a=[...pointers.values()];pinch={distance:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),scale:camera.scale};dragStart=null;}
+   if(pointers.size===2){const a=[...pointers.values()];pinch={distance:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),scale:camera.scale,worldX:((a[0].x+a[1].x)/2-camera.x)/camera.scale,worldY:((a[0].y+a[1].y)/2-camera.y)/camera.scale};dragStart=null;}
   }
  });
  canvas.addEventListener('pointermove',e=>{
@@ -994,6 +1019,7 @@ function bind(){
    cancelHold();
    const [a,b]=[...pointers.values()];
    camera.scale=Math.max(.12,Math.min(3,pinch.scale*Math.hypot(a.x-b.x,a.y-b.y)/Math.max(1,pinch.distance)));
+   camera.x=(a.x+b.x)/2-pinch.worldX*camera.scale;camera.y=(a.y+b.y)/2-pinch.worldY*camera.scale;
    drawGraph();
   }else if(dragStart){
    const dx=pt.x-dragStart.x,dy=pt.y-dragStart.y;
@@ -1032,5 +1058,5 @@ function upgradeOldSave(){
 async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}upgradeOldSave();state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
-window.LEGACY_TEST={getState:()=>state,addEvent,advance,advanceCalendar,renderCalendar,showCalendarDetails,renderTimeline,timelinePlay,timelinePause,timelineAdvance,timelineSpeed,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera})};
+window.LEGACY_TEST={getState:()=>state,addEvent,advance,advanceCalendar,renderCalendar,showCalendarDetails,renderTimeline,timelinePlay,timelinePause,timelineAdvance,timelineSpeed,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera}),fitScene,treeViewport,centerPerson,zoomTree,toggleTreeFullscreen,setTab};
 })();

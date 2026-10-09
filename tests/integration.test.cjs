@@ -33,6 +33,34 @@ test('game boots, offers a choice, advances time and hands off the family',async
  const api=sandbox.LEGACY_TEST;
  assert.ok(api,'integration hooks installed');
  let state=api.getState();assert.equal(state.year,2026);
+ // Full-screen camera keeps the entire fitted graph within its unobstructed viewport.
+ const treeCanvas=node('#tree-canvas'),originalRect=treeCanvas.getBoundingClientRect;
+ for(const [width,height] of [[390,844],[844,390],[1440,900]]){
+  treeCanvas.getBoundingClientRect=()=>({width,height,left:0,top:0,right:width,bottom:height});
+  for(const zen of [false,true]){
+   api.toggleTreeFullscreen(zen);api.fitScene();
+   const v=api.treeViewport(),camera=api.getCamera();
+   for(const n of api.getScene()){
+    assert.ok((n.x-n.w/2)*camera.scale+camera.x>=v.x-1,'fit left');
+    assert.ok((n.x+n.w/2)*camera.scale+camera.x<=v.x+v.w+1,'fit right');
+    assert.ok((n.y-n.h/2)*camera.scale+camera.y>=v.y-1,'fit top');
+    assert.ok((n.y+n.h/2)*camera.scale+camera.y<=v.y+v.h+1,'fit bottom');
+   }
+   api.centerPerson();
+   const centered=api.getCamera(),selected=api.getScene().find(n=>n.p.id===api.getState().selectedId);
+   assert.ok(Math.abs(selected.x*centered.scale+centered.x-v.x-v.w/2)<.01);
+   assert.ok(Math.abs(selected.y*centered.scale+centered.y-v.y-v.h/2)<.01);
+   api.zoomTree(1.24);
+   const zoomed=api.getCamera();
+   assert.ok(Math.abs(selected.x*zoomed.scale+zoomed.x-v.x-v.w/2)<.01,'zoom preserves visual anchor');
+  }
+ }
+ api.toggleTreeFullscreen(false);
+ assert.equal(node('#app').classList.contains('zen-tree'),false);
+ treeCanvas.getBoundingClientRect=originalRect;
+ api.fitScene();
+ assert.ok(node('#selected-name').textContent,'selected person is discoverable without a long press');
+
  assert.equal(state.calendar.date,'2026-01-01');
  assert.equal(state.timeline.speedMinutes,15,'default is fifteen real minutes per game year');
  assert.match(node('#timeline-status').textContent,/Paused/);

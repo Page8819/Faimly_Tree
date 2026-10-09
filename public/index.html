@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
 <meta name="theme-color" content="#091318" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -13,6 +13,7 @@
 <link rel="icon" type="image/png" href="./icons/icon-192.png" />
 <title>LEGACY — A Living Family Tree</title>
 <link rel="stylesheet" href="./styles.css" />
+<link rel="stylesheet" href="./interface.css" />
 </head>
 <body>
 <div id="app" class="app immersive-tree">
@@ -22,12 +23,18 @@
     <div class="header-actions"><button class="icon-button" id="new-world-btn" title="New family" aria-label="Create a new family">＋</button><button class="icon-button" id="menu-btn" title="Save, load and settings" aria-label="Open settings">☰</button></div>
   </header>
   <section id="stats" class="stats" aria-label="Family statistics"></section>
-  <div class="main-topbar"><div class="view-tabs" role="tablist" aria-label="Main view"><button class="tab active" data-tab="tree" role="tab">Family tree</button><button class="tab" data-tab="people" role="tab">People</button><button class="tab" data-tab="history" role="tab">History</button></div><div id="world-title" class="world-title">THE MORGAN FAMILY</div></div>
+  <div class="main-topbar"><div class="view-tabs" role="tablist" aria-label="Main view"><button class="tab active" data-tab="tree" role="tab" aria-selected="true"><span aria-hidden="true">♧</span>Family tree</button><button class="tab" data-tab="people" role="tab" aria-selected="false"><span aria-hidden="true">♙</span>People</button><button class="tab" data-tab="history" role="tab" aria-selected="false"><span aria-hidden="true">◷</span>History</button></div><div id="world-title" class="world-title">THE MORGAN FAMILY</div></div>
   <section id="calendar-strip" class="calendar-strip" aria-label="World calendar and time controls">
     <button type="button" id="calendar-detail" class="calendar-date-button" aria-label="Open calendar and local work schedule"><span class="calendar-primary" id="calendar-date">January • 1st • 2026</span><small id="calendar-weekday">Thursday · Day 1 of 365</small></button>
-    <div class="calendar-conditions"><strong id="calendar-clock">9:00 AM EST · New York</strong><span id="calendar-work">Your work schedule appears here</span><span id="calendar-holiday" class="calendar-holiday"></span></div>
-    <div class="calendar-steps" aria-label="Advance time"><button type="button" id="advance-hour" aria-label="Advance one real hour">+1h</button><button type="button" id="advance-day" aria-label="Advance one calendar day">+1 day</button><button type="button" id="advance-month" aria-label="Advance one calendar month">+1 month</button></div>
+
   </section>
+  <div class="time-dock">
+  <details id="time-settings" class="time-settings"><summary>Time &amp; control <span aria-hidden="true">⌃</span></summary><div class="time-settings-body">    <div class="calendar-conditions"><strong id="calendar-clock">9:00 AM EST · New York</strong><span id="calendar-work">Your work schedule appears here</span><span id="calendar-holiday" class="calendar-holiday"></span></div>
+    <div class="calendar-steps" aria-label="Advance time"><button type="button" id="advance-hour" aria-label="Advance one real hour">+1h</button><button type="button" id="advance-day" aria-label="Advance one calendar day">+1 day</button><button type="button" id="advance-month" aria-label="Advance one calendar month">+1 month</button></div>  <footer class="simulation-bar">
+    <div class="mode-section"><div class="eyebrow">CONTROL MODE</div><div class="mode-toggle"><button data-mode="individual" class="active">Individual</button><button data-mode="family">Family</button></div></div>
+    <div class="simulation-middle"><div class="eyebrow">THE PASSAGE OF TIME</div><div class="timeline-copy" id="time-copy">An entire world, one year at a time.</div></div>
+    <div class="time-actions"><button class="advance subtle" data-years="1">+1 <small>year</small></button><button class="advance subtle" data-years="5">+5 <small>years</small></button><button class="advance primary" data-years="20">+20 <small>years</small><span class="next-arrow">→</span></button></div>
+  </footer></div></details>
   <section id="living-timeline" class="living-timeline" aria-label="Living timeline simulation">
     <div class="living-timeline-top">
       <div class="living-timeline-heading"><strong>Living timeline</strong><span id="timeline-status">Paused · time moves only when you press Play</span></div>
@@ -50,11 +57,12 @@
       </div>
     </div>
   </section>
+  </div>
   <main class="workspace">
     <section class="workspace-primary" id="primary-panel">
       <div id="tree-view" class="tree-view">
-        <div class="panel-heading"><div><div class="eyebrow">GENEALOGY / LIVE NETWORK</div><h1 id="tree-heading">The Morgan family</h1><div id="tree-subhead" class="panel-subtext">Every life leaves a branch.</div></div><div class="scope-switch"><button data-scope="focus" class="scope active">Focus</button><button data-scope="all" class="scope">All</button></div></div>
-        <div class="canvas-wrap" id="canvas-wrap"><canvas id="tree-canvas" aria-label="Interactive family tree. Tap a person to select, hold a person to open full statistics, drag to pan and pinch to zoom."></canvas><div class="canvas-caption" id="canvas-caption">TAP SELECT · HOLD STATS · PINCH ZOOM</div>
+        <div class="panel-heading"><div><div class="eyebrow">YOUR LIVING DYNASTY</div><h1 id="tree-heading">The Morgan family</h1><div id="tree-subhead" class="panel-subtext">Every life leaves a branch.</div></div><div class="scope-switch"><button data-scope="focus" class="scope active">Focus</button><button data-scope="all" class="scope">All</button></div></div>
+        <div class="canvas-wrap" id="canvas-wrap"><canvas id="tree-canvas" aria-label="Interactive family tree. Tap a person to select, hold a person to open full statistics, drag to pan and pinch to zoom."></canvas><div class="canvas-caption" id="canvas-caption">Drag to explore · Pinch to zoom</div>
           <button id="attention-inbox" class="attention-inbox-button hidden" type="button" aria-label="Open family updates"><span aria-hidden="true">✦</span> Updates <b id="attention-count">0</b></button>
           <div id="attention-banner" class="attention-banner hidden" role="status" aria-live="polite">
             <button id="attention-go" class="attention-go" type="button" aria-label="Review family update">
@@ -63,18 +71,14 @@
               <span class="attention-open-arrow" aria-hidden="true">→</span>
             </button>
             <button id="attention-dismiss" class="attention-dismiss" type="button" aria-label="Dismiss this reminder">✕</button>
-          </div><div class="canvas-tools"><button id="zoom-in" aria-label="Zoom in">＋</button><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-fit" aria-label="Fit tree on screen">⌗</button></div></div>
+          </div><button id="selected-person" class="selected-person" aria-label="Open selected person"><span id="selected-avatar" class="selected-avatar"></span><span class="selected-copy"><small>FOLLOWING</small><strong id="selected-name"></strong><span id="selected-meta"></span></span><span class="selected-arrow" aria-hidden="true">↗</span></button><div class="canvas-tools"><button id="tree-fullscreen" aria-label="Hide controls for a full-screen tree" aria-pressed="false" title="Full-screen tree">⛶</button><button id="center-person" aria-label="Center selected person" title="Find selected person">◎</button><button id="zoom-in" aria-label="Zoom in">＋</button><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-fit" aria-label="Fit tree on screen">⌗</button></div></div>
       </div>
       <div id="people-view" class="list-view hidden"><div class="panel-heading"><div><div class="eyebrow">THE LIVING & THE REMEMBERED</div><h1>People of your dynasty</h1><div class="panel-subtext">Choose anyone to uncover their story.</div></div></div><input id="people-search" class="text-input search-input" type="search" placeholder="Search people, jobs, cities…" aria-label="Search people" /><div class="person-list" id="people-list"></div></div>
       <div id="history-view" class="list-view hidden"><div class="panel-heading"><div><div class="eyebrow">FAMILY CHRONICLE</div><h1>Events that shaped us</h1><div class="panel-subtext">Recorded decisions and milestones, year by year.</div></div></div><div class="history-list" id="history-list"></div></div>
     </section>
     <aside class="profile-panel" id="profile-panel"><div id="profile-content"></div></aside>
   </main>
-  <footer class="simulation-bar">
-    <div class="mode-section"><div class="eyebrow">CONTROL MODE</div><div class="mode-toggle"><button data-mode="individual" class="active">Individual</button><button data-mode="family">Family</button></div></div>
-    <div class="simulation-middle"><div class="eyebrow">THE PASSAGE OF TIME</div><div class="timeline-copy" id="time-copy">An entire world, one year at a time.</div></div>
-    <div class="time-actions"><button class="advance subtle" data-years="1">+1 <small>year</small></button><button class="advance subtle" data-years="5">+5 <small>years</small></button><button class="advance primary" data-years="20">+20 <small>years</small><span class="next-arrow">→</span></button></div>
-  </footer>
+
 </div>
 <div id="modal-backdrop" class="modal-backdrop hidden"><div class="modal" id="modal-content" role="dialog" aria-modal="true"></div></div>
 <div id="toast" class="toast hidden" role="status"></div>
