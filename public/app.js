@@ -485,7 +485,7 @@ function advanceCalendar(unit,amount=1){
  try{
   if(unit==='hour'){
    const oldYear=state.year;
-   LEGACY_CALENDAR.updateFromInstant(state,LEGACY_CALENDAR.instantFor(c.date,c.minutes,LEGACY_CALENDAR.masterZone(state))+3600000*amount);
+   LEGACY_CALENDAR.updateFromInstant(state,c.instant+3600000*amount);
    if(+c.date.slice(0,4)>oldYear){simulateOneYear();if(!state.pendingChoice&&!state.pendingSuccession)maybeLifeChoice();}
    if(c.date!==start)calendarDayLog();
    elapsed=1;
@@ -493,7 +493,7 @@ function advanceCalendar(unit,amount=1){
    const destination=unit==='month'?LEGACY_CALENDAR.shiftMonths(c.date,amount):LEGACY_CALENDAR.shiftDays(c.date,amount);
    const duration=Math.round((Date.parse(destination+'T12:00:00Z')-Date.parse(start+'T12:00:00Z'))/86400000);
    for(let i=0;i<duration;i++){
-    c.date=LEGACY_CALENDAR.shiftDays(c.date,1);c.daysElapsed++;elapsed++;
+    c.date=LEGACY_CALENDAR.shiftDays(c.date,1);LEGACY_CALENDAR.reanchor(state);c.daysElapsed++;elapsed++;
     if(+c.date.slice(0,4)>state.year){simulateOneYear();if(!state.pendingChoice&&!state.pendingSuccession)maybeLifeChoice();}
     calendarDayLog();
     if(state.pendingChoice||state.pendingSuccession||state.nextId>MAX_PEOPLE)break;
@@ -799,6 +799,7 @@ function advance(years,continuation=false){
   for(let i=0;i<years;i++){
    const c=state.calendar,old=c.date;
    c.date=LEGACY_CALENDAR.shiftYears(c.date,1);
+   LEGACY_CALENDAR.reanchor(state);
    c.daysElapsed+=Math.round((Date.parse(c.date+'T12:00:00Z')-Date.parse(old+'T12:00:00Z'))/86400000);
    simulateOneYear();passed++;
    if(state.pendingSuccession){state.remainingYears=years-passed;break;}
