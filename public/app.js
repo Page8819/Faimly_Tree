@@ -598,12 +598,13 @@ function showPersonStats(id,tab='overview',page=0){
   title('Choose an education pathway')+'<div class="person-path-cards">'+available.slice(page*perPage,(page+1)*perPage).map(prog=>
     '<button class="person-path-card" data-education-id="'+prog.id+'" '+(!alive(p)||state.mode==='individual'&&state.controlledId!==p.id||!prog.eligibility.ok?'disabled':'')+'><span><strong>'+esc(prog.name)+'</strong><small>'+esc(prog.category)+' · '+prog.years+'yr · '+money(prog.cost)+'</small></span><small>'+esc(prog.eligibility.ok?'Enroll →':prog.eligibility.reason)+'</small></button>').join('')+'</div>'+pageControls('education',page,pages);
  }else if(tab==='career'){
+  const shift=LEGACY_CALENDAR.schedule(p,state,LEGACY_CAREERS.jobs);
   const list=career.opportunities,perPage=4,pages=Math.max(1,Math.ceil(list.length/perPage));page=Math.max(0,Math.min(page,pages-1));
   body=title('Current occupation')+'<div class="person-page-metrics">'+[
    ['Position',career.current?.name||'Unemployed'],['Estimated yearly income',money(career.salary)],
    ['Experience',career.experience+' years'],['Career grade',career.grade+' / 5']
   ].map(([a,b])=>metric(a,b)).join('')+'</div>'+
-   '<p class="person-page-description">Tenure: '+career.tenure+' years · Work performance: '+career.performance+'/100. Education and experience control eligibility.</p>'+
+   '<p class="person-page-description">'+esc(p.city)+' · '+calendarTime(shift.minutes)+' '+esc(shift.abbreviation)+' · '+esc(shift.reason)+(shift.scheduled?' · '+calendarTime(shift.start)+'–'+calendarTime(shift.end):'')+(shift.holiday?' · '+esc(shift.holiday):'')+'<br>Tenure: '+career.tenure+' years · Performance: '+career.performance+'/100. Shifts are modeled by occupation and location.</p>'+
    title('Explore real occupations')+'<div class="person-path-cards">'+list.slice(page*perPage,(page+1)*perPage).map(j=>
     '<button class="person-path-card" data-career-id="'+j.id+'" '+(!alive(p)||state.mode==='individual'&&state.controlledId!==p.id||!j.eligibility.ok?'disabled':'')+'><span><strong>'+esc(j.name)+'</strong><small>'+esc(j.sector)+' · '+money(j.salary)+'/yr</small></span><small>'+esc(j.eligibility.ok?'Apply →':j.eligibility.reason)+'</small></button>').join('')+'</div>'+pageControls('career',page,pages);
  }else if(tab==='stats'){
