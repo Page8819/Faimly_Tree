@@ -29,6 +29,7 @@ jobs:
           node --check public/living-storylines.js
           node --check public/living-impact.js
           node --check public/attention.js
+          node --check public/calendar.js
           node --test tests/*.test.cjs
       - name: Confirm static entry points
         run: |
