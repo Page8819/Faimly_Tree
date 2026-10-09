@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-<div id="app" class="app">
+<div id="app" class="app immersive-tree">
   <header class="header">
     <div class="brand"><div class="brand-symbol"><svg viewBox="0 0 38 38" fill="none" aria-hidden="true"><path d="M19 32V15M19 22L10 12M19 18l9-9M10 12V6M28 9l6-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="6" r="3" fill="currentColor"/><circle cx="34" cy="5" r="3" fill="currentColor"/><circle cx="19" cy="12" r="3" fill="currentColor"/><path d="M9 32h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="brand-name">LEGACY<span class="brand-dot">.</span></div><div class="brand-sub">A LIVING DYNASTY</div></div></div>
     <div class="year-display"><div class="micro-label">CURRENT YEAR</div><div id="header-year" class="year-numeral">2026</div></div>
@@ -27,7 +27,7 @@
     <section class="workspace-primary" id="primary-panel">
       <div id="tree-view" class="tree-view">
         <div class="panel-heading"><div><div class="eyebrow">GENEALOGY / LIVE NETWORK</div><h1 id="tree-heading">The Morgan family</h1><div id="tree-subhead" class="panel-subtext">Every life leaves a branch.</div></div><div class="scope-switch"><button data-scope="focus" class="scope active">Focus</button><button data-scope="all" class="scope">All</button></div></div>
-        <div class="canvas-wrap" id="canvas-wrap"><canvas id="tree-canvas" aria-label="Interactive family tree. Tap a person to inspect their life."></canvas><div class="canvas-caption" id="canvas-caption">DRAG TO PAN · PINCH TO ZOOM · TAP A PERSON</div><div class="canvas-tools"><button id="zoom-in" aria-label="Zoom in">＋</button><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-fit" aria-label="Fit tree on screen">⌗</button></div></div>
+        <div class="canvas-wrap" id="canvas-wrap"><canvas id="tree-canvas" aria-label="Interactive family tree. Tap a person to select, hold a person to open full statistics, drag to pan and pinch to zoom."></canvas><div class="canvas-caption" id="canvas-caption">TAP TO SELECT · HOLD FOR STATS · PINCH TO ZOOM</div><div class="canvas-tools"><button id="zoom-in" aria-label="Zoom in">＋</button><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-fit" aria-label="Fit tree on screen">⌗</button></div></div>
       </div>
       <div id="people-view" class="list-view hidden"><div class="panel-heading"><div><div class="eyebrow">THE LIVING & THE REMEMBERED</div><h1>People of your dynasty</h1><div class="panel-subtext">Choose anyone to uncover their story.</div></div></div><input id="people-search" class="text-input search-input" type="search" placeholder="Search people, jobs, cities…" aria-label="Search people" /><div class="person-list" id="people-list"></div></div>
       <div id="history-view" class="list-view hidden"><div class="panel-heading"><div><div class="eyebrow">FAMILY CHRONICLE</div><h1>Events that shaped us</h1><div class="panel-subtext">Recorded decisions and milestones, year by year.</div></div></div><div class="history-list" id="history-list"></div></div>
