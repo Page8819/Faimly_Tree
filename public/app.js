@@ -826,6 +826,26 @@ function layoutGraph(){const visible=visiblePeople();const groups=new Map();for(
  drawGraph();
 }
 function setCanvasSize(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));ctx.setTransform(dpr,0,0,dpr,0,0);return {w:rect.width,h:rect.height};}
+function appViewportHeight(){
+ const inner=Number(window.innerHeight)||0,v=window.visualViewport;
+ const zoomed=v&&Math.abs((v.scale||1)-1)>.01;
+ if(zoomed)return inner;
+ const visible=v&&Number(v.height)>0?Number(v.height):inner;
+ const standalone=navigator.standalone===true||window.matchMedia?.('(display-mode: standalone)').matches;
+ // iPhone standalone WebKit can report a toolbar-sized 100dvh despite having no toolbar.
+ // Only that full-screen phone mode uses screen dimensions; browsers/iPad retain their viewport.
+ if(standalone&&/iPhone/.test(navigator.userAgent||'')){
+  const screen=window.screen||{},portrait=(Number(window.innerWidth)||0)<=inner;
+  const full=portrait?Math.max(screen.width||0,screen.height||0):Math.min(screen.width||0,screen.height||0);
+  const editing=/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName||'');
+  if(!editing&&full>=inner&&full-inner<160)return full;
+ }
+ return visible||inner;
+}
+function syncAppViewport(){
+ const height=appViewportHeight();
+ if(height>0)document.documentElement?.style.setProperty('--legacy-viewport-height',height+'px');
+}
 function treeViewport(){
  const r=canvas.getBoundingClientRect(),zen=$('#app').classList.contains('zen-tree');
  let top=zen?28:Math.min(205,r.height*.28),bottom=zen?76:Math.min(220,r.height*.3),left=24,right=24;
@@ -833,7 +853,7 @@ function treeViewport(){
  if(!zen&&typeof window.getComputedStyle==='function'){
   const heading=$('.tree-view .panel-heading').getBoundingClientRect();
   const dock=$('.time-dock').getBoundingClientRect();
-  top=heading.bottom-r.top+18;
+  if(Number.isFinite(heading.bottom))top=heading.bottom-r.top+18;
   if(dock.top>r.top&&dock.left<r.right&&dock.right>r.left)bottom=r.bottom-dock.top+18;
   if(r.width<=680){const selected=$('#selected-person').getBoundingClientRect();if(selected.top>r.top)bottom=Math.max(bottom,r.bottom-selected.top+18);}
  }
@@ -947,7 +967,7 @@ function chooseSuccessor(id){
 
 function newWorldModal(){showModal(`<div class="eyebrow">THE BEGINNING OF EVERYTHING</div><h2>Begin a new legacy</h2><p>Start with one person, two parents, and a sibling. Every life that follows grows from this history.</p><label for="new-name">Founding character</label><input maxlength="50" id="new-name" class="field-input" value="Alex Morgan" placeholder="First and last name" /><label for="new-sex">Founding character</label><select id="new-sex" class="field-input"><option value="male">Male</option><option value="female">Female</option></select><label for="new-year">Starting year</label><input id="new-year" class="field-input" type="number" min="1800" max="2200" value="2026" /><div class="modal-warning">Creating a new world replaces the current active game. Export your family history first if you want to keep it.</div><div class="modal-actions"><button class="secondary" id="cancel-modal">Cancel</button><button class="primary" id="create-world">Create family →</button></div>`);
  $('#cancel-modal').onclick=closeModal;$('#create-world').onclick=()=>{let v=$('#new-name').value.trim(),y=Number($('#new-year').value);if(!v||!Number.isInteger(y)||y<1800||y>2200){toast('Enter a name and a starting year from 1800 to 2200.');return}newWorld(v,$('#new-sex').value,y);closeModal();saveSoon();setTab('tree');render();toast('A new family story has begun.');};}
-function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">LEGACY <strong>v1.23.0</strong> · Edge-to-edge display · Automatic update checks</p><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
+function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">LEGACY <strong>v1.24.0</strong> · Edge-to-edge display · Automatic update checks</p><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
  $('#realism-select').onchange=e=>{state.realism=e.target.value;saveSoon();toast(`Realism: ${state.realism}.`)};
  $('#export-game').onclick=exportGame;$('#import-game').onclick=()=>$('#import-file').click();$('#import-file').onchange=handleImport;
  $('#save-game').onclick=()=>saveGame().then(ok=>toast(ok?'Family saved on this device.':'Storage unavailable; export a backup instead.'));
@@ -962,6 +982,13 @@ async function loadGame(){db=await openDB();if(db){try{const game=await new Prom
 async function saveGame(){if(!state)return false;let success=false;if(db){try{success=await new Promise(resolve=>{const tx=db.transaction('worlds','readwrite');tx.objectStore('worlds').put(state,'active');tx.oncomplete=()=>resolve(true);tx.onerror=()=>resolve(false);tx.onabort=()=>resolve(false)})}catch(e){console.warn('IndexedDB write unavailable',e)}}if(!success)success=storageSet();return success}
 function saveSoon(){clearTimeout(saveHandle);saveHandle=setTimeout(()=>{saveGame().then(ok=>{if(!ok)toast('Could not auto-save. Export a backup from the menu.')})},450)}
 function bind(){
+ syncAppViewport();
+ if(typeof window.addEventListener==='function'){
+  window.addEventListener('resize',syncAppViewport);
+  window.addEventListener('pageshow',syncAppViewport);
+  window.visualViewport?.addEventListener('resize',syncAppViewport);
+  document.addEventListener('focusout',()=>setTimeout(syncAppViewport,150));
+ }
  $$('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
  $$('.scope').forEach(b=>b.onclick=()=>{scope=b.dataset.scope;$$('.scope').forEach(x=>x.classList.toggle('active',x.dataset.scope===scope));needsFit=true;layoutGraph()});
  $$('.mode-toggle button').forEach(b=>b.onclick=()=>{state.mode=b.dataset.mode;saveSoon();render();toast(state.mode==='individual'?'Individual Control: follow a selected life.':'Family Control: direct any living relative.')});
@@ -1039,7 +1066,7 @@ function bind(){
  canvas.addEventListener('lostpointercapture',()=>{cancelHold();});
  canvas.addEventListener('wheel',e=>{e.preventDefault();const pt=getPoint(e),wx=(pt.x-camera.x)/camera.scale,wy=(pt.y-camera.y)/camera.scale;camera.scale=Math.max(.12,Math.min(3,camera.scale*(e.deltaY<0?1.1:.9)));camera.x=pt.x-wx*camera.scale;camera.y=pt.y-wy*camera.scale;drawGraph()},{passive:false});
  const ro=new ResizeObserver(()=>{if(currentTab==='tree'&&state){fitScene();drawGraph()}});ro.observe($('#canvas-wrap'));
- document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){timelinePause();saveGame()}});
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){timelinePause();saveGame()}else{syncAppViewport();if(currentTab==='tree')requestAnimationFrame(()=>{fitScene();drawGraph()});}});
  if(typeof window.addEventListener==='function')window.addEventListener('pagehide',()=>{timelinePause();saveGame()});
 }
 function upgradeOldSave(){
