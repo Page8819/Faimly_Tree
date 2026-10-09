@@ -233,7 +233,7 @@ function resolveLifeChoice(action){
  }else switch(action){
  case 'college':{const target=LEGACY_EDUCATION.has(p,'hs')?'bachelor':'ged';const r=LEGACY_EDUCATION.enroll(p,target,age(p),state.year);result=r.ok?r.message:r.message+' Explore other programs in the School tab.';}break;
  case 'trade':{const target=LEGACY_EDUCATION.has(p,'hs')?'trade':'ged';const r=LEGACY_EDUCATION.enroll(p,target,age(p),state.year);result=r.message;}break;
- case 'work':p.jobLevel=Math.max(p.jobLevel,1);changeMoney(4500);result='Started working immediately and saved $4,500.';break;
+ case 'work':{const c=LEGACY_CAREERS.details(p,age(p));const r=c.current?{ok:true,message:'Continued in '+c.current.name+'.'}:LEGACY_CAREERS.apply(p,'service',age(p),state.year,()=>0);if(r.ok)changeMoney(4500);result=r.ok?r.message+' Built $4,500 in initial savings.':r.message;}break;
  case 'promotion':{const r=LEGACY_CAREERS.promote(p,state.year,()=>chance(fortune)?0:1);if(r.ok)changeMoney(3000);result=r.message;}break;
  case 'business':changeMoney(-7500);if(chance(Math.max(.2,fortune-.12+(p.traits.openness-50)/300))){const gains=int(12000,28000);changeMoney(gains);result='The new venture succeeded, returning '+money(gains)+' after the initial investment.';}else result='The new venture struggled and the $7,500 startup investment was lost.';break;
  case 'stable':changeMoney(3500);result='Chose a steadier path and accumulated $3,500 in savings.';break;
@@ -360,7 +360,7 @@ function showPersonStats(id,tab='overview',page=0){
   return {person,type,strength:Math.round(p.bonds?.[person.id]??50),social:LEGACY_RELATIONSHIPS.relation(p,person)};
  });
  const occupation=age(p)<16?'Growing up':p.retired?'Retired':career.current?.name||'Seeking work';
- const education=['Early learning','Secondary','Vocational / college','Higher education','Advanced education'][Math.min(p.education??0,4)]||'Education';
+ const school=LEGACY_EDUCATION.details(p,age(p));const education=school.current?'Studying: '+school.current.name:school.credentials.at(-1)?.name||'No qualifications yet';
  const metric=(label,value)=>'<div class="person-page-metric"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong></div>';
  const title=t=>'<h3 class="person-page-title">'+esc(t)+'</h3>';
  const trait=(label,value)=>'<div class="person-page-trait"><span>'+esc(label)+'</span><div class="person-page-track"><div style="width:'+Math.max(0,Math.min(100,Number(value)||0))+'%"></div></div><b>'+Math.round(value||0)+'</b></div>';
@@ -613,7 +613,7 @@ function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</di
  $('#new-from-menu').onclick=newWorldModal;$('#close-menu').onclick=closeModal;}
 function exportGame(){const data=JSON.stringify(state,null,2);const a=document.createElement('a');const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.href=url;a.download=`LEGACY_${state.familyName}_${state.year}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Exported family history backup.');}
 function validImport(g){return !!(g&&g.version===VERSION&&Number.isInteger(g.year)&&g.year>=1800&&g.year<=3000&&g.people&&typeof g.people==='object'&&!Array.isArray(g.people)&&Array.isArray(g.events)&&g.selectedId&&g.people[g.selectedId]&&Object.keys(g.people).length<=100000&&g.events.length<=300000)}
-async function handleImport(e){const file=e.target.files?.[0];if(!file)return;try{const g=JSON.parse(await file.text());if(!validImport(g))throw Error('Invalid or incompatible save');state=g;state.controlledId=state.controlledId||state.founderId||state.selectedId;closeModal();needsFit=true;currentTab='tree';setTab('tree');render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();await saveGame();toast(`Restored the ${state.familyName} family.`)}catch(err){toast('Could not import this save file.')}e.target.value='';}
+async function handleImport(e){const file=e.target.files?.[0];if(!file)return;try{const g=JSON.parse(await file.text());if(!validImport(g))throw Error('Invalid or incompatible save');state=g;upgradeOldSave();state.controlledId=state.controlledId||state.founderId||state.selectedId;closeModal();needsFit=true;currentTab='tree';setTab('tree');render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();await saveGame();toast(`Restored the ${state.familyName} family.`)}catch(err){toast('Could not import this save file.')}e.target.value='';}
 function openDB(){return new Promise(resolve=>{try{if(!('indexedDB' in window))return resolve(null);const r=indexedDB.open('legacy-family-save',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('worlds'))r.result.createObjectStore('worlds')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>resolve(null)}catch(e){resolve(null)}})}
 function storageGet(){try{return JSON.parse(localStorage.getItem('legacy-snapshot-v1')||'null')}catch(e){return null}}
 function storageSet(){try{localStorage.setItem('legacy-snapshot-v1',JSON.stringify(state));return true}catch(e){return false}}
@@ -690,7 +690,13 @@ function bind(){
  const ro=new ResizeObserver(()=>{if(currentTab==='tree'&&state){if(needsFit)fitScene();drawGraph()}});ro.observe($('#canvas-wrap'));
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveGame()});
 }
-async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
+function upgradeOldSave(){
+ for(const p of persons()){
+  LEGACY_HUMAN.ensure(p,age(p));LEGACY_ECONOMY.ensure(p);LEGACY_MEDICINE.ensure(p);
+  LEGACY_EDUCATION.ensure(p);LEGACY_CAREERS.ensure(p);
+ }
+}
+async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}upgradeOldSave();state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
 window.LEGACY_TEST={getState:()=>state,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showSuccession,chooseSuccessor,showPersonStats,getScene:()=>scene,getCamera:()=>({...camera})};
