@@ -169,7 +169,7 @@ function showLifeChoice(){
  const p=get(pending.personId),choice=pending.kind==='event'?pending.event:LIFE_CHOICES[pending.kind];
  if(!p||!choice){state.pendingChoice=null;saveSoon();return;}
  showModal('<div class="eyebrow">LIFE DECISION / '+esc(choice.tag)+'</div><div class="life-choice-meta">'+esc(full(p))+' · Age '+age(p)+' · '+state.year+'</div><h2>'+esc(choice.title)+'</h2><p>'+esc(choice.text)+'</p><div class="life-choice-options">'+choice.options.map((o,i)=>'<button class="life-choice-option" data-life-option="'+esc(o[0])+'"><span class="life-choice-number">0'+(i+1)+'</span><span><strong>'+esc(o[1])+'</strong><small>'+esc(o[2])+'</small></span><span class="life-choice-arrow">→</span></button>').join('')+'</div><p class="modal-note">Your decision changes this person’s life and is remembered in the family chronicle.</p>');
- $('.life-choice-option').forEach(b=>b.onclick=()=>resolveLifeChoice(b.dataset.lifeOption));
+ $$('.life-choice-option').forEach(b=>b.onclick=()=>resolveLifeChoice(b.dataset.lifeOption));
 }
 function resolveLifeChoice(action){
  const pending=state.pendingChoice;if(!pending)return;
@@ -403,7 +403,7 @@ function showSuccession(){
   return;
  }
  showModal(intro+stats+'<div class="life-choice-options">'+heirs.map((h,i)=>'<button class="life-choice-option" data-heir="'+esc(h.id)+'"><span class="life-choice-number">'+String(i+1).padStart(2,'0')+'</span><span><strong>'+esc(h.name)+'</strong><small>'+esc(h.role)+' · Age '+h.age+' · Generation '+h.gen+' · '+esc(h.city)+'</small></span><span class="life-choice-arrow">→</span></button>').join('')+'</div><p class="modal-note">Your new character retains the upbringing, relationships and opportunities created by earlier generations.</p>');
- $('[data-heir]').forEach(b=>b.onclick=()=>chooseSuccessor(b.dataset.heir));
+ $$('[data-heir]').forEach(b=>b.onclick=()=>chooseSuccessor(b.dataset.heir));
 }
 function chooseSuccessor(id){
  const transition=LEGACY_SUCCESSION.choose(state,id);if(!transition)return;
