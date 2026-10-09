@@ -44,7 +44,7 @@ function createPerson({first,last,sex,birthYear,gen=0,parentIds=[],adoptiveParen
  LEGACY_HUMAN.ensure(p,state.year-birthYear);LEGACY_ECONOMY.ensure(p);state.people[p.id]=p;return p;
 }
 function addEvent(year,type,message,personIds=[]){state.events.push({id:state.nextEvent++,year,type,message,personIds:[...new Set(personIds.filter(Boolean))]})}
-function bond(a,b,value){a.bonds[b.id]=Math.max(0,Math.min(100,(a.bonds[b.id]??50)+value));b.bonds[a.id]=Math.max(0,Math.min(100,(b.bonds[a.id]??50)+value))}
+function bond(a,b,value){LEGACY_RELATIONSHIPS.affect(a,b,value,state.year,'family interaction')}
 function linkCouple(a,b,type='partner',withEvent=true){
  if(a.partnerId||b.partnerId||a.id===b.id)return false;
  a.partnerId=b.id;b.partnerId=a.id;a.partnerSince=b.partnerSince=state.year;bond(a,b,int(14,27));
@@ -122,8 +122,8 @@ function simulateOneYear(){state.year++;
  for(const p of persons()){const q=partner(p);if(q&&p.id<q.id&&alive(p)&&alive(q))couples.push([p,q]);}
  for(const [p,q] of couples){if(!p.partnerId||!q.partnerId)continue;
   const years=state.year-(p.partnerSince??state.year);
-  const tension=((p.traits.emotionality+q.traits.emotionality)/200)*.014;
-  if(years>2&&chance(.008+tension)){unlinkCouple(p,q);continue;}
+  const tension=((p.needs?.stress||35)+(q.needs?.stress||35)>145)?.009:0;
+  if(years>2&&chance(LEGACY_RELATIONSHIPS.fragility(p,q)+tension)){unlinkCouple(p,q);continue;}
   const f=p.sex==='female'?p:q.sex==='female'?q:null;
   const m=p.sex==='male'?p:q.sex==='male'?q:null;
   const parentsKids=biologicalCounts.get(pairKey(p.id,q.id))||0;
@@ -133,6 +133,7 @@ function simulateOneYear(){state.year++;
    if(adoptKids<2&&chance(.055))birth(p,q,true);
   }
  }
+ LEGACY_RELATIONSHIPS.annual(state,state.year,rnd,(year,type,message,ids)=>addEvent(year,type,message,ids));
  const active=get(state.controlledId);
  if(state.mode==='individual'&&active&&!alive(active)&&!state.pendingSuccession){
   LEGACY_SUCCESSION.prepare(state,active.id);
@@ -323,7 +324,7 @@ function showPersonStats(id,tab='overview',page=0){
   const parent=parents.some(x=>x.id===person.id)||adopters.some(x=>x.id===person.id);
   const child=children.some(x=>x.id===person.id);
   const type=parent?'Parent':child?'Child':q?.id===person.id?'Partner':p.formerPartners?.includes(person.id)?'Former partner':'Family';
-  return {person,type,strength:Math.round(p.bonds?.[person.id]??50)};
+  return {person,type,strength:Math.round(p.bonds?.[person.id]??50),social:LEGACY_RELATIONSHIPS.relation(p,person)};
  });
  const occupation=age(p)<18?'Growing up':p.retired?'Retired':jobs[Math.min(p.jobLevel??0,5)]||'Unemployed';
  const education=['Early learning','Secondary','Vocational / college','Higher education','Advanced education'][Math.min(p.education??0,4)]||'Education';
@@ -359,7 +360,7 @@ function showPersonStats(id,tab='overview',page=0){
  }else if(tab==='family'){
   const size=6,pages=Math.max(1,Math.ceil(rel.length/size));page=Math.max(0,Math.min(page,pages-1));
   body=title('Family connections · '+rel.length)+
-   '<div class="person-page-connections">'+(rel.length?rel.slice(page*size,(page+1)*size).map(x=>'<button class="person-page-relation" data-person="'+esc(x.person.id)+'"><span><strong>'+esc(full(x.person))+'</strong><small>'+esc(x.type)+' · '+esc(ages(x.person))+'</small></span><b>'+x.strength+' / 100</b></button>').join(''):'<p class="person-page-empty">No recorded close family connections yet.</p>')+'</div>'+pageControls('family',page,pages);
+   '<div class="person-page-connections">'+(rel.length?rel.slice(page*size,(page+1)*size).map(x=>'<button class="person-page-relation" data-person="'+esc(x.person.id)+'"><span><strong>'+esc(full(x.person))+'</strong><small>'+esc(x.type)+' · Trust '+x.social.trust+' · Conflict '+x.social.conflict+'</small></span><b>'+x.strength+' / 100</b></button>').join(''):'<p class="person-page-empty">No recorded close family connections yet.</p>')+'</div>'+pageControls('family',page,pages);
  }else if(tab==='actions'){
   const canAct=alive(p)&&(state.mode==='family'||state.controlledId===p.id);
   const actions=[['partner','♥','Find partner'],['child','✦','Grow family'],['career','↑','Career'],['educate','◈','Education'],['move','⌁','Relocate'],['support','♡','Support kin'],['home','⌂','Buy a home'],['budget','◇','Adjust budget']];
