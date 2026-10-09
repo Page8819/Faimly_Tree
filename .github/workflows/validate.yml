@@ -16,6 +16,7 @@ jobs:
           node --check public/app.js
           node --check public/consequences.js
           node --check public/events.js
+          node --check public/succession.js
           node --test tests/*.test.cjs
       - name: Confirm static entry points
         run: |
