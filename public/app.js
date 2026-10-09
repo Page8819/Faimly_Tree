@@ -477,15 +477,60 @@ function bind(){
  $('#people-search').addEventListener('input',renderPeople);
  $('#modal-backdrop').addEventListener('click',e=>{if(e.target.id==='modal-backdrop')closeModal()});
  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
- let pointers=new Map(),dragStart=null,pinch=null;
+ let pointers=new Map(),dragStart=null,pinch=null,holdTimer=null,holdTarget=null,holdConsumed=false;
+ const LONG_PRESS_MS=520;
  const getPoint=e=>{const r=canvas.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top}};
- canvas.addEventListener('pointerdown',e=>{e.preventDefault();canvas.setPointerCapture(e.pointerId);const pt=getPoint(e);pointers.set(e.pointerId,pt);if(pointers.size===1)dragStart={...pt,camX:camera.x,camY:camera.y,moved:false};if(pointers.size===2){const a=[...pointers.values()];pinch={distance:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),scale:camera.scale};dragStart=null}});
- canvas.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;const pt=getPoint(e);pointers.set(e.pointerId,pt);
- if(pointers.size===2&&pinch){const [a,b]=[...pointers.values()];camera.scale=Math.max(.12,Math.min(3,pinch.scale*Math.hypot(a.x-b.x,a.y-b.y)/Math.max(1,pinch.distance)));drawGraph()}
- else if(dragStart){const dx=pt.x-dragStart.x,dy=pt.y-dragStart.y;if(Math.hypot(dx,dy)>6)dragStart.moved=true;if(dragStart.moved){camera.x=dragStart.camX+dx;camera.y=dragStart.camY+dy;drawGraph()}}
+ const personAt=pt=>{
+  const wx=(pt.x-camera.x)/camera.scale,wy=(pt.y-camera.y)/camera.scale;
+  return scene.slice().reverse().find(n=>wx>=n.x-n.w/2&&wx<=n.x+n.w/2&&wy>=n.y-n.h/2&&wy<=n.y+n.h/2)?.p||null;
+ };
+ const cancelHold=()=>{if(holdTimer!==null)clearTimeout(holdTimer);holdTimer=null;holdTarget=null};
+ canvas.addEventListener('contextmenu',e=>e.preventDefault());
+ canvas.addEventListener('pointerdown',e=>{
+  e.preventDefault();canvas.setPointerCapture(e.pointerId);
+  const pt=getPoint(e);pointers.set(e.pointerId,pt);
+  if(pointers.size===1){
+   holdConsumed=false;
+   dragStart={...pt,camX:camera.x,camY:camera.y,moved:false};
+   const person=personAt(pt);
+   if(person&&!state.pendingChoice&&!state.pendingSuccession){
+    holdTarget=person.id;
+    holdTimer=setTimeout(()=>{
+     const target=holdTarget;holdTimer=null;holdTarget=null;
+     if(!target||!dragStart||dragStart.moved||pointers.size!==1)return;
+     holdConsumed=true;dragStart=null;
+     showPersonStats(target);
+    },LONG_PRESS_MS);
+   }
+  }else{
+   cancelHold();
+   if(pointers.size===2){const a=[...pointers.values()];pinch={distance:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),scale:camera.scale};dragStart=null;}
+  }
  });
- canvas.addEventListener('pointerup',e=>{const pt=getPoint(e);const d=dragStart;pointers.delete(e.pointerId);if(!pointers.size){if(d&&!d.moved){const wx=(pt.x-camera.x)/camera.scale,wy=(pt.y-camera.y)/camera.scale;const hit=scene.slice().reverse().find(n=>wx>=n.x-n.w/2&&wx<=n.x+n.w/2&&wy>=n.y-n.h/2&&wy<=n.y+n.h/2);if(hit)selectPerson(hit.p.id)}dragStart=null;pinch=null}else if(pointers.size===1){dragStart=null;pinch=null}});
- canvas.addEventListener('pointercancel',e=>{pointers.delete(e.pointerId);dragStart=null;pinch=null});
+ canvas.addEventListener('pointermove',e=>{
+  if(!pointers.has(e.pointerId))return;
+  const pt=getPoint(e);pointers.set(e.pointerId,pt);
+  if(pointers.size===2&&pinch){
+   cancelHold();
+   const [a,b]=[...pointers.values()];
+   camera.scale=Math.max(.12,Math.min(3,pinch.scale*Math.hypot(a.x-b.x,a.y-b.y)/Math.max(1,pinch.distance)));
+   drawGraph();
+  }else if(dragStart){
+   const dx=pt.x-dragStart.x,dy=pt.y-dragStart.y;
+   if(Math.hypot(dx,dy)>6){dragStart.moved=true;cancelHold();}
+   if(dragStart.moved){camera.x=dragStart.camX+dx;camera.y=dragStart.camY+dy;drawGraph();}
+  }
+ });
+ canvas.addEventListener('pointerup',e=>{
+  const pt=getPoint(e),d=dragStart,consumed=holdConsumed;
+  cancelHold();pointers.delete(e.pointerId);
+  if(!pointers.size){
+   if(!consumed&&d&&!d.moved){const hit=personAt(pt);if(hit)selectPerson(hit.id);}
+   dragStart=null;pinch=null;holdConsumed=false;
+  }else if(pointers.size===1){dragStart=null;pinch=null;}
+ });
+ canvas.addEventListener('pointercancel',e=>{cancelHold();pointers.delete(e.pointerId);dragStart=null;pinch=null;holdConsumed=false});
+ canvas.addEventListener('lostpointercapture',()=>{cancelHold();});
  canvas.addEventListener('wheel',e=>{e.preventDefault();const pt=getPoint(e),wx=(pt.x-camera.x)/camera.scale,wy=(pt.y-camera.y)/camera.scale;camera.scale=Math.max(.12,Math.min(3,camera.scale*(e.deltaY<0?1.1:.9)));camera.x=pt.x-wx*camera.scale;camera.y=pt.y-wy*camera.scale;drawGraph()},{passive:false});
  const ro=new ResizeObserver(()=>{if(currentTab==='tree'&&state){if(needsFit)fitScene();drawGraph()}});ro.observe($('#canvas-wrap'));
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveGame()});
