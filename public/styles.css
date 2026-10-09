@@ -79,7 +79,7 @@
 .tree-view .canvas-wrap{min-height:0;border-top:0}
 #tree-canvas{touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .canvas-caption{max-width:calc(100% - 137px);line-height:1.35}
-.modal:has(>.person-sheet){width:min(100%,680px);height:min(94dvh,950px);max-height:94dvh;overflow:hidden;padding:0;border-color:#8b8066}
+
 .person-sheet{display:flex;flex-direction:column;min-height:0;height:100%;overflow:hidden}
 .person-sheet-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;padding:18px 20px 15px;border-bottom:1px solid #344c49;background:#1a3030}
 .person-sheet-topname{font-family:Georgia,serif;font-size:23px;margin-top:5px;line-height:1.1}
@@ -104,8 +104,8 @@
  .app.immersive-tree{grid-template-rows:auto auto minmax(0,1fr) auto}
  .tree-view .scope-switch{top:8px;right:8px}
  .canvas-caption{font-size:8px;max-width:calc(100% - 116px);bottom:8px;left:10px;letter-spacing:.3px}
- .modal:has(>.person-sheet){height:calc(100dvh - 18px);max-height:calc(100dvh - 18px);width:100%}
- .modal-backdrop:has(>.modal>.person-sheet){padding:9px max(8px,env(safe-area-inset-right,0px)) 9px max(8px,env(safe-area-inset-left,0px))}
+
+
  .person-sheet-top{padding:15px 15px 12px}
  .person-sheet-topname{font-size:21px}
  .person-sheet .profile-head{padding-top:12px}
@@ -114,7 +114,7 @@
 }
 @media(max-height:520px) and (min-width:681px){
  .workspace{grid-template-columns:minmax(0,1fr)}
- .modal:has(>.person-sheet){height:calc(100dvh - 12px);max-height:calc(100dvh - 12px);width:min(100%,740px)}
+
  .person-sheet-top{padding:8px 16px}
 }
 
