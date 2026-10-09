@@ -67,10 +67,15 @@ test('trade work stops for modeled holidays but essential healthcare remains sta
  const state=make('2026-07-03');
  const carpenter=C.schedule(state.people.p,state,jobs);
  assert.equal(carpenter.scheduled,false);assert.equal(carpenter.reason,'Holiday leave');
- state.people.p.career.jobId='physician';
- const doctor=C.schedule(state.people.p,state,jobs);
- assert.equal(doctor.scheduled,true);assert.equal(doctor.working,true);
- assert.equal(doctor.hours,12);
+ state.people.p.career.jobId='nurse';
+ const nurse=C.schedule(state.people.p,state,{...jobs,nurse:{name:'Nurse',sector:'Healthcare',minAge:21}});
+ assert.equal(nurse.scheduled,false,'nurse has three modeled shifts, not seven days per week');
+ state.calendar.date='2026-07-04';
+ const weekendNurse=C.schedule(state.people.p,state,{...jobs,nurse:{name:'Nurse',sector:'Healthcare',minAge:21}});
+ assert.equal(weekendNurse.scheduled,true);
+ assert.equal(weekendNurse.hours,12);
+ state.people.p.career.jobId='physician';state.calendar.date='2026-07-03';
+ assert.equal(C.schedule(state.people.p,state,jobs).reason,'Holiday leave','clinic schedules differ from emergency shifts');
  state.people.p.career.jobId='teacher';state.calendar.date='2026-07-06';
  assert.equal(C.schedule(state.people.p,state,jobs).reason,'Summer break');
 });
@@ -89,4 +94,18 @@ test('old saves acquire valid dates without rewriting years, and day reports are
  assert.equal(state.year,2113);
  for(let i=0;i<100;i++)C.dayReport(state,jobs);
  assert.equal(state.calendar.dailyJournal.length,70);
+});
+
+test('authoritative UTC clock distinguishes both repeated 1:30 AM instants at fall-back',()=>{
+ const state=make('2026-11-01');
+ state.calendar.minutes=30;delete state.calendar.instant;
+ const start=C.ensure(state).instant;
+ C.updateFromInstant(state,start+3600000);
+ assert.equal(state.calendar.minutes,90);
+ const first=state.calendar.instant;
+ C.updateFromInstant(state,first+3600000);
+ assert.equal(state.calendar.minutes,90,'the repeated 1:30 AM has the same wall time');
+ assert.equal(state.calendar.instant-first,3600000,'but moves forward by one physical hour');
+ C.updateFromInstant(state,state.calendar.instant+3600000);
+ assert.equal(state.calendar.minutes,150,'another hour reaches 2:30 AM without looping');
 });
