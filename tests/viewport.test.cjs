@@ -10,11 +10,19 @@ function harness(options={}){
  const context={window,navigator,document};vm.createContext(context);vm.runInContext(fn,context);
  return {context,props,height:context.appViewportHeight()};
 }
-test('installed iPhone fills screen rather than toolbar-sized dvh',()=>{
- const h=harness();assert.equal(h.height,852);h.context.syncAppViewport();assert.equal(h.props['--legacy-viewport-height'],'852px');
+test('installed iPhone stays inside visible web view even when screen is taller',()=>{
+ const h=harness();assert.equal(h.height,795);h.context.syncAppViewport();assert.equal(h.props['--legacy-viewport-height'],'795px');
 });
-test('landscape installed iPhone uses the short screen dimension',()=>{
- assert.equal(harness({window:{innerWidth:852,innerHeight:350,visualViewport:{height:350,scale:1}}}).height,393);
+test('landscape installed iPhone respects its visible viewport',()=>{
+ assert.equal(harness({window:{innerWidth:852,innerHeight:350,visualViewport:{height:350,scale:1}}}).height,350);
+});
+test('navigation and safe padding both remain inside the rendered viewport',()=>{
+ for(const [innerHeight,visibleHeight] of [[795,795],[852,795],[795,852],[350,350]]){
+  const h=harness({window:{innerHeight,visualViewport:{height:visibleHeight,scale:1}}});
+  const safe=34,navHeight=60+safe,navTop=h.height-navHeight;
+  assert.ok(navTop+navHeight<=Math.min(innerHeight,visibleHeight));
+  assert.ok(navTop+5+45<=h.height-safe,'full tab touch targets are visible above safe inset');
+ }
 });
 test('Safari and iPad keep their visible viewport, not device screen height',()=>{
  assert.equal(harness({navigator:{standalone:false}}).height,795);
