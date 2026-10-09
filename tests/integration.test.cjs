@@ -34,7 +34,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.ok(api,'integration hooks installed');
  let state=api.getState();assert.equal(state.year,2026);
  assert.equal(Object.keys(state.people).length,4);
- assert.deepEqual(sandbox.LEGACY_ATTENTION.unread(state),[],'founding historical events should not trigger alerts');
+ assert.equal(sandbox.LEGACY_ATTENTION.unread(state).length,0,'founding historical events should not trigger alerts');
  assert.ok(state.people[state.controlledId].needs?.physical>0);
  assert.equal(state.people[state.controlledId].finance?.cash,4500);
  assert.ok(Array.isArray(state.people[state.controlledId].medical?.conditions));
