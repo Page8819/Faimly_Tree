@@ -68,7 +68,7 @@
    }
   }else if(country==='CA'){
    fixed(1,1,"New Year's Day",'MON');add(nth(y,2,1,3),'Family Day (regional)');
-   add(offset(e,-2),'Good Friday');add(shiftDays(iso(y,5,25),-((weekday(y,5,25)+6)%7+1)),'Victoria Day');
+   add(offset(e,-2),'Good Friday');add(shiftDays(iso(y,5,24),-((weekday(y,5,24)+6)%7)),'Victoria Day');
    fixed(7,1,'Canada Day','MON');add(nth(y,9,1,1),'Labour Day');fixed(9,30,'National Day for Truth and Reconciliation','MON');
    add(nth(y,10,1,2),'Thanksgiving');fixed(11,11,'Remembrance Day','MON');
    fixed(12,25,'Christmas Day','MON');fixed(12,26,'Boxing Day','MON');
@@ -79,7 +79,7 @@
   }else if(country==='FR'){
    fixed(1,1,"New Year's Day");add(offset(e,1),'Easter Monday');
    fixed(5,1,'Labour Day');fixed(5,8,'Victory Day');add(offset(e,39),'Ascension Day');add(offset(e,50),'Whit Monday');
-   fixed(7,14,'Bastille Day');fixed(8,15),'Assumption Day';
+   fixed(7,14,'Bastille Day');fixed(8,15,'Assumption Day');
    fixed(11,1,'All Saints Day');fixed(11,11,'Armistice Day');fixed(12,25,'Christmas Day');
   }else if(country==='JP'){
    fixed(1,1,"New Year's Day");add(nth(y,1,1,2),'Coming of Age Day');
