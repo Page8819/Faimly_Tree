@@ -18,11 +18,16 @@
 <div id="app" class="app immersive-tree">
   <header class="header">
     <div class="brand"><div class="brand-symbol"><svg viewBox="0 0 38 38" fill="none" aria-hidden="true"><path d="M19 32V15M19 22L10 12M19 18l9-9M10 12V6M28 9l6-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="6" r="3" fill="currentColor"/><circle cx="34" cy="5" r="3" fill="currentColor"/><circle cx="19" cy="12" r="3" fill="currentColor"/><path d="M9 32h20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div><div class="brand-name">LEGACY<span class="brand-dot">.</span></div><div class="brand-sub">A LIVING DYNASTY</div></div></div>
-    <div class="year-display"><div class="micro-label">CURRENT YEAR</div><div id="header-year" class="year-numeral">2026</div></div>
+    <div class="year-display"><div class="micro-label" id="header-day-count">DAY 001 / 365</div><div id="header-year" class="year-numeral">2026</div></div>
     <div class="header-actions"><button class="icon-button" id="new-world-btn" title="New family" aria-label="Create a new family">＋</button><button class="icon-button" id="menu-btn" title="Save, load and settings" aria-label="Open settings">☰</button></div>
   </header>
   <section id="stats" class="stats" aria-label="Family statistics"></section>
   <div class="main-topbar"><div class="view-tabs" role="tablist" aria-label="Main view"><button class="tab active" data-tab="tree" role="tab">Family tree</button><button class="tab" data-tab="people" role="tab">People</button><button class="tab" data-tab="history" role="tab">History</button></div><div id="world-title" class="world-title">THE MORGAN FAMILY</div></div>
+  <section id="calendar-strip" class="calendar-strip" aria-label="World calendar and time controls">
+    <button type="button" id="calendar-detail" class="calendar-date-button" aria-label="Open calendar and local work schedule"><span class="calendar-primary" id="calendar-date">January • 1st • 2026</span><small id="calendar-weekday">Thursday · Day 1 of 365</small></button>
+    <div class="calendar-conditions"><strong id="calendar-clock">9:00 AM EST · New York</strong><span id="calendar-work">Your work schedule appears here</span><span id="calendar-holiday" class="calendar-holiday"></span></div>
+    <div class="calendar-steps" aria-label="Advance time"><button type="button" id="advance-hour" aria-label="Advance one real hour">+1h</button><button type="button" id="advance-day" aria-label="Advance one calendar day">+1 day</button><button type="button" id="advance-month" aria-label="Advance one calendar month">+1 month</button></div>
+  </section>
   <main class="workspace">
     <section class="workspace-primary" id="primary-panel">
       <div id="tree-view" class="tree-view">
@@ -66,6 +71,7 @@
 <script src="./living-storylines.js"></script>
 <script src="./living-impact.js"></script>
 <script src="./attention.js"></script>
+<script src="./calendar.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>
