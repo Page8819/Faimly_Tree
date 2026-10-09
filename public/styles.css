@@ -340,3 +340,86 @@
  .living-choice-sheet .living-summary{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
  .living-facts{display:none}
 }
+
+
+/* Family attention: compact, persistent alerts attached to important character events. */
+.attention-inbox-button{
+ position:absolute;z-index:5;left:11px;top:10px;
+ display:flex;align-items:center;gap:7px;min-height:35px;
+ padding:7px 11px;border:1px solid #716b51;border-radius:11px;
+ background:#1e3633;color:#f2ddb1;
+ box-shadow:0 4px 20px #0209099c;font-weight:760;font-size:11px;
+ touch-action:manipulation;cursor:pointer
+}
+.attention-inbox-button>b{display:grid;place-items:center;min-width:19px;height:19px;padding:0 4px;background:#ddb676;border-radius:8px;color:#132724;font-size:11px;line-height:1}
+.attention-banner{
+ position:absolute;z-index:6;left:11px;bottom:54px;width:min(380px,calc(100% - 22px));
+ display:flex;align-items:stretch;min-height:71px;
+ background:#203a37;border:1px solid #a38b5c;border-radius:14px;
+ box-shadow:0 8px 32px #020908c7;overflow:hidden
+}
+.attention-go{
+ display:flex;flex:1;gap:9px;min-width:0;align-items:center;
+ padding:9px 7px 9px 11px;text-align:left;background:transparent;border:none;color:#f4f1e7;
+ touch-action:manipulation;cursor:pointer
+}
+.attention-badge{
+ flex:none;display:grid;place-items:center;width:24px;height:24px;
+ background:#e2bd7e;color:#22302b;border-radius:50%;font-weight:850;font-size:15px
+}
+.attention-message-wrap{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}
+.attention-message-wrap small{color:#daba83;font-size:8px;letter-spacing:1.1px;font-weight:720}
+.attention-message-wrap strong{color:#f4f4e9;font-size:13px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.attention-message-wrap>span{color:#b9c9bd;font-size:10px;line-height:1.27;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.attention-open-arrow{color:#d9bc8a;font-size:21px}
+.attention-dismiss{flex:none;border:0;border-left:1px solid #567366;background:#203a37;color:#bdcfc1;width:32px;font-size:12px;touch-action:manipulation;cursor:pointer}
+.attention-dismiss:focus-visible,.attention-go:focus-visible,.attention-inbox-button:focus-visible{outline:2px solid #f3d499;outline-offset:-2px}
+.person-attention-tag{color:#e8bf7b;font-size:10px;font-weight:760;white-space:nowrap}
+
+/* The inbox is paged rather than scrollable, retaining the phone-safe layout. */
+.modal-backdrop.attention-inbox-backdrop{
+ display:flex;align-items:center;justify-content:center;
+ padding:max(67px,calc(env(safe-area-inset-top,0px) + 12px)) max(12px,env(safe-area-inset-right,0px))
+ max(16px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))
+}
+.modal.attention-inbox-dialog{width:min(100%,520px);max-height:100%;overflow:hidden;padding:15px 17px}
+.attention-inbox-sheet{display:flex;flex-direction:column;min-height:0;max-height:100%;gap:9px}
+.attention-inbox-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.attention-inbox-title h2{margin:4px 0 0;font-size:24px}
+.attention-inbox-close{flex:none;width:37px;height:37px;background:#28443e;color:#f1e9da;border:1px solid #567266;border-radius:10px}
+.modal p.attention-inbox-intro{font-size:11px;line-height:1.35;margin:0;color:#b7cbbf}
+.attention-inbox-items{display:grid;grid-template-rows:repeat(4,minmax(0,1fr));gap:7px;min-height:0;flex:1}
+.attention-list-item{
+ display:flex;gap:9px;align-items:center;text-align:left;
+ min-width:0;min-height:64px;padding:9px 11px;color:#f5f0e4;background:#1d3433;
+ border:1px solid #3f5953;border-radius:10px;touch-action:manipulation
+}
+.attention-list-item:hover,.attention-list-item:focus-visible{border-color:#e1bd77}
+.attention-list-dot{display:grid;flex:none;place-items:center;width:24px;height:24px;border-radius:50%;background:#e5c18a;color:#1c312b;font-weight:850}
+.attention-list-dot.urgent{background:#f0a597}
+.attention-list-copy{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+.attention-list-copy strong{font-size:12px}
+.attention-list-copy small{font-size:10px;color:#d8ba82}
+.attention-list-copy em{font-size:10px;color:#b7c9bf;font-style:normal;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.attention-list-arrow{font-size:18px;color:#dbb87c}
+.attention-inbox-foot{display:flex;align-items:center;justify-content:space-between;gap:7px;font-size:11px;color:#b6c7b9;min-height:28px}
+.attention-inbox-foot button,.attention-inbox-bottom button{background:#24413b;border:1px solid #557165;color:#dce9d9;border-radius:9px;padding:8px 11px;font-size:11px}
+.attention-inbox-foot button:disabled,.attention-inbox-bottom button:disabled{opacity:.35}
+.attention-inbox-bottom{display:flex;justify-content:center}
+.attention-inbox-bottom button{width:100%;background:transparent;color:#b4c3b7;border-color:#374f49}
+@media(max-width:680px){
+ .attention-inbox-button{left:9px;top:7px;min-height:32px;font-size:10px}
+ .attention-banner{left:9px;bottom:45px;width:calc(100% - 18px);min-height:65px}
+ .attention-badge{width:21px;height:21px}
+ .attention-message-wrap strong{font-size:12px}
+ .attention-dismiss{width:29px}
+ .modal.attention-inbox-dialog{padding:12px 13px}
+ .attention-inbox-title h2{font-size:21px}
+}
+@media(max-height:620px){
+ .attention-inbox-sheet{gap:5px}
+ .attention-inbox-title h2{font-size:18px}
+ .attention-list-item{min-height:43px;padding:4px 8px}
+ .attention-list-copy em{-webkit-line-clamp:1}
+ .attention-inbox-foot button,.attention-inbox-bottom button{padding:5px 8px}
+}
