@@ -37,6 +37,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.equal(state.timeline.speedMinutes,15,'default is fifteen real minutes per game year');
  assert.match(node('#timeline-status').textContent,/Paused/);
  assert.match(node('#timeline-months').innerHTML,/Jan/);
+ node('#modal-backdrop').classList.add('hidden'); // Matches initial hidden modal in index.html.
  api.timelineSpeed(1);
  assert.equal(state.timeline.speedMinutes,1);
  assert.equal(api.timelinePlay(),true);
