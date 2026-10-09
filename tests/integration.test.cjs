@@ -50,6 +50,13 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.equal(api.timelinePause(),true);
  assert.equal(fakeIntervals.size,0);
  assert.match(node('#timeline-play').textContent,/Play/);
+ // Returning to the Home Screen must stop play without background catch-up.
+ assert.equal(api.timelinePlay(),true);
+ sandbox.document.visibilityState='hidden';
+ documentHandlers.visibilitychange();
+ assert.equal(fakeIntervals.size,0);
+ assert.match(node('#timeline-play').textContent,/Play/);
+ sandbox.document.visibilityState='visible';
  api.timelineSpeed(15);
  // Reload never persists a playing flag.
  assert.equal(state.timeline.playing,undefined);
