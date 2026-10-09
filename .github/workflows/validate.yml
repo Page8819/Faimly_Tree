@@ -12,7 +12,10 @@ jobs:
         with:
           node-version: '22'
       - name: Check game JavaScript syntax
-        run: node --check public/app.js
+        run: |
+          node --check public/app.js
+          node --check public/consequences.js
+          node --test tests/*.test.cjs
       - name: Confirm static entry points
         run: |
           test -s public/index.html
