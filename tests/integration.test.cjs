@@ -24,7 +24,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
   requestAnimationFrame(f){f()},Intl,Date,Math,Blob,URL
  };
  sandbox.window=sandbox;
- for(const name of ['education.js','medicine.js','human.js','economy.js','consequences.js','events.js','succession.js','relationships.js','app.js']){
+ for(const name of ['careers.js','education.js','medicine.js','human.js','economy.js','consequences.js','events.js','succession.js','relationships.js','app.js']){
   const source=fs.readFileSync(path.join(__dirname,'../public',name),'utf8');
   vm.runInNewContext(source,sandbox,{filename:name,timeout:2000});
  }
@@ -38,6 +38,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.equal(state.people[state.controlledId].finance?.cash,4500);
  assert.ok(Array.isArray(state.people[state.controlledId].medical?.conditions));
  assert.ok(Array.isArray(state.people[state.controlledId].schooling?.credentials));
+ assert.ok(state.people[state.controlledId].career?.jobId);
  // The immersive view hides the permanent sidebar and uses a character sheet.
  const css=fs.readFileSync(path.join(__dirname,'../public/styles.css'),'utf8');
  assert.match(css,/\.app\.immersive-tree\{grid-template-rows/);
@@ -54,6 +55,9 @@ test('game boots, offers a choice, advances time and hands off the family',async
  api.showPersonStats(state.controlledId,'education');
  assert.match(node('#modal-content').innerHTML,/Education &amp; qualifications/);
  assert.match(node('#modal-content').innerHTML,/Trade apprenticeship/);
+ api.showPersonStats(state.controlledId,'career');
+ assert.match(node('#modal-content').innerHTML,/Current occupation/);
+ assert.match(node('#modal-content').innerHTML,/Carpenter/);
  api.showPersonStats(state.controlledId,'stats');
  assert.match(node('#modal-content').innerHTML,/Wellbeing/);
  assert.match(node('#modal-content').innerHTML,/Physical health/);
