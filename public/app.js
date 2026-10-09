@@ -70,7 +70,7 @@ function birth(a,b,adopted=false){
 }
 function newWorld(name='Alex Morgan',sex='male',startYear=2026){
  const clean=String(name).trim().replace(/\s+/g,' ');let spl=clean.split(' ');const first=spl.shift()||'Alex',last=spl.join(' ')||'Morgan';
- state={version:VERSION,year:startYear,mode:'individual',realism:'realistic',founderId:null,selectedId:null,controlledId:null,rootId:null,nextId:1,nextEvent:1,rng:hash(clean+startYear),familyName:last,people:{},events:[],pendingChoice:null,remainingYears:0,createdAt:new Date().toISOString()};
+ state={version:VERSION,year:startYear,mode:'individual',realism:'realistic',founderId:null,selectedId:null,controlledId:null,rootId:null,nextId:1,nextEvent:1,rng:hash(clean+startYear),familyName:last,people:{},events:[],pendingChoice:null,pendingSuccession:null,successionLog:[],remainingYears:0,createdAt:new Date().toISOString()};
  let father=createPerson({first:'Robert',last,sex:'male',birthYear:startYear-53,gen:0,education:2,jobLevel:3,wealth:80000});
  let mother=createPerson({first:'Elaine',last,sex:'female',birthYear:startYear-51,gen:0,education:3,jobLevel:3,wealth:92000});
  father.partnerId=mother.id;mother.partnerId=father.id;father.partnerSince=mother.partnerSince=startYear-27;bond(father,mother,30);
@@ -127,10 +127,8 @@ function simulateOneYear(){state.year++;
   }
  }
  const active=get(state.controlledId);
- if(state.mode==='individual'&&active&&!alive(active)){
-  const candidates=persons().filter(p=>alive(p)&&p.inFamily&&age(p)>=16);
-  candidates.sort((a,b)=>{const ad=(a.parentIds.includes(active.id)||a.adoptiveParentIds.includes(active.id))?0:1;const bd=(b.parentIds.includes(active.id)||b.adoptiveParentIds.includes(active.id))?0:1;return ad-bd||Math.abs(a.gen-active.gen-1)-Math.abs(b.gen-active.gen-1)||age(b)-age(a)});
-  if(candidates.length){state.selectedId=candidates[0].id;state.controlledId=candidates[0].id;addEvent(state.year,'milestone',`The family story continues through ${full(candidates[0])}.`,[candidates[0].id]);}
+ if(state.mode==='individual'&&active&&!alive(active)&&!state.pendingSuccession){
+  LEGACY_SUCCESSION.prepare(state,active.id);
  }
 }
 function related(p){let ids=[...p.parentIds,...p.adoptiveParentIds,...kids(p).map(v=>v.id),...(p.partnerId?[p.partnerId]:[]),...p.formerPartners];return [...new Set(ids)].map(get).filter(Boolean)}
@@ -144,7 +142,7 @@ const LIFE_CHOICES={
  relationship:{tag:'HEART & HOME',title:'An unexpected connection.',text:'Someone new could change the shape of your future family. How open are you to a relationship?',options:[['meet','Explore the connection','Take a chance on a possible new partner.'],['friends','Build friendships','Enjoy new connections without a commitment.'],['solo','Stay independent','Put your own goals first for now.']]}
 };
 function maybeLifeChoice(){
- if(state.pendingChoice)return false;
+ if(state.pendingChoice||state.pendingSuccession)return false;
  const p=get(state.mode==='individual'?state.controlledId:state.selectedId);
  if(!p||!alive(p))return false;
  const a=age(p),last=Number(p.lastLifeChoiceYear)||0;
@@ -363,7 +361,7 @@ function renderPeople(){const search=$('#people-search').value.toLocaleLowerCase
  $$('#people-list [data-person]').forEach(b=>b.addEventListener('click',()=>selectPerson(b.dataset.person)));
 }
 function renderHistory(){const events=state.events.slice().sort((a,b)=>b.year-a.year||b.id-a.id).slice(0,450);let oldYear=null;
- $('#history-list').innerHTML=events.map(e=>{let head='';if(e.year!==oldYear){oldYear=e.year;head=`<div class="history-year">${e.year}</div>`}const name=e.personIds.map(get).filter(Boolean)[0];return `${head}<div class="history-item"><span class="history-marker">${({birth:'✦',death:'◆',relationship:'♥',adoption:'✦',move:'⌁',career:'↑',education:'◈',inheritance:'◇',family:'♡',milestone:'✧',choice:'⚖'}[e.type]||'●')}</span><button data-event-person="${name?.id||''}"><div class="history-name">${esc(e.type.toUpperCase())}</div>${esc(e.message)}</button></div>`}).join('')+(state.events.length>450?'<div class="empty-note">Showing the latest 450 events. All events remain in the saved game and exported backup.</div>':'');
+ $('#history-list').innerHTML=events.map(e=>{let head='';if(e.year!==oldYear){oldYear=e.year;head=`<div class="history-year">${e.year}</div>`}const name=e.personIds.map(get).filter(Boolean)[0];return `${head}<div class="history-item"><span class="history-marker">${({birth:'✦',death:'◆',relationship:'♥',adoption:'✦',move:'⌁',career:'↑',education:'◈',inheritance:'◇',family:'♡',milestone:'✧',choice:'⚖',succession:'♜'}[e.type]||'●')}</span><button data-event-person="${name?.id||''}"><div class="history-name">${esc(e.type.toUpperCase())}</div>${esc(e.message)}</button></div>`}).join('')+(state.events.length>450?'<div class="empty-note">Showing the latest 450 events. All events remain in the saved game and exported backup.</div>':'');
  $$('#history-list [data-event-person]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.eventPerson)selectPerson(b.dataset.eventPerson)}));
 }
 function setTab(tab){currentTab=tab;$$('.tab').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);b.setAttribute('aria-selected',String(b.dataset.tab===tab))});
@@ -372,24 +370,26 @@ function setTab(tab){currentTab=tab;$$('.tab').forEach(b=>{b.classList.toggle('a
 }
 function render(){if(!state)return;renderStats();renderProfile();if(currentTab==='tree')requestAnimationFrame(layoutGraph);if(currentTab==='people')renderPeople();if(currentTab==='history')renderHistory();}
 function advance(years,continuation=false){
- if(busy||state.pendingChoice)return;
+ if(busy||state.pendingChoice||state.pendingSuccession)return;
  if(state.nextId>MAX_PEOPLE){toast('2,000-person prototype limit. Export your family; larger simulations are planned.');return}
  if(!continuation)state.remainingYears=0;
  busy=true;const before=state.events.length,peeps=persons().length;let passed=0;
  try{
   for(let i=0;i<years;i++){
    simulateOneYear();passed++;
+   if(state.pendingSuccession){state.remainingYears=years-passed;break;}
    if(maybeLifeChoice()){state.remainingYears=years-passed;break;}
    if(state.nextId>MAX_PEOPLE)break;
   }
   needsFit=true;$('#profile-panel').scrollTop=0;render();saveSoon();
-  if(state.pendingChoice)showLifeChoice();
+  if(state.pendingSuccession)showSuccession();
+  else if(state.pendingChoice)showLifeChoice();
   else toast(passed<years?'2,000-person limit reached. Export your save to preserve this dynasty.':passed+' year'+(passed===1?'':'s')+' passed · '+(persons().length-peeps)+' new lives · '+(state.events.length-before)+' events');
  }catch(e){console.error(e);toast('Simulation error: please export a backup.')}
  finally{busy=false}
 }
 function showModal(html){$('#modal-content').innerHTML=html;$('#modal-backdrop').classList.remove('hidden')}
-function closeModal(){if(state?.pendingChoice)return;$('#modal-backdrop').classList.add('hidden')}
+function closeModal(){if(state?.pendingChoice||state?.pendingSuccession)return;$('#modal-backdrop').classList.add('hidden')}
 function newWorldModal(){showModal(`<div class="eyebrow">THE BEGINNING OF EVERYTHING</div><h2>Begin a new legacy</h2><p>Start with one person, two parents, and a sibling. Every life that follows grows from this history.</p><label for="new-name">Founding character</label><input maxlength="50" id="new-name" class="field-input" value="Alex Morgan" placeholder="First and last name" /><label for="new-sex">Founding character</label><select id="new-sex" class="field-input"><option value="male">Male</option><option value="female">Female</option></select><label for="new-year">Starting year</label><input id="new-year" class="field-input" type="number" min="1800" max="2200" value="2026" /><div class="modal-warning">Creating a new world replaces the current active game. Export your family history first if you want to keep it.</div><div class="modal-actions"><button class="secondary" id="cancel-modal">Cancel</button><button class="primary" id="create-world">Create family →</button></div>`);
  $('#cancel-modal').onclick=closeModal;$('#create-world').onclick=()=>{let v=$('#new-name').value.trim(),y=Number($('#new-year').value);if(!v||!Number.isInteger(y)||y<1800||y>2200){toast('Enter a name and a starting year from 1800 to 2200.');return}newWorld(v,$('#new-sex').value,y);closeModal();saveSoon();setTab('tree');render();toast('A new family story has begun.');};}
 function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
@@ -399,7 +399,7 @@ function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</di
  $('#new-from-menu').onclick=newWorldModal;$('#close-menu').onclick=closeModal;}
 function exportGame(){const data=JSON.stringify(state,null,2);const a=document.createElement('a');const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.href=url;a.download=`LEGACY_${state.familyName}_${state.year}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Exported family history backup.');}
 function validImport(g){return !!(g&&g.version===VERSION&&Number.isInteger(g.year)&&g.year>=1800&&g.year<=3000&&g.people&&typeof g.people==='object'&&!Array.isArray(g.people)&&Array.isArray(g.events)&&g.selectedId&&g.people[g.selectedId]&&Object.keys(g.people).length<=100000&&g.events.length<=300000)}
-async function handleImport(e){const file=e.target.files?.[0];if(!file)return;try{const g=JSON.parse(await file.text());if(!validImport(g))throw Error('Invalid or incompatible save');state=g;state.controlledId=state.controlledId||state.founderId||state.selectedId;closeModal();needsFit=true;currentTab='tree';setTab('tree');render();if(state.pendingChoice)showLifeChoice();await saveGame();toast(`Restored the ${state.familyName} family.`)}catch(err){toast('Could not import this save file.')}e.target.value='';}
+async function handleImport(e){const file=e.target.files?.[0];if(!file)return;try{const g=JSON.parse(await file.text());if(!validImport(g))throw Error('Invalid or incompatible save');state=g;state.controlledId=state.controlledId||state.founderId||state.selectedId;closeModal();needsFit=true;currentTab='tree';setTab('tree');render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();await saveGame();toast(`Restored the ${state.familyName} family.`)}catch(err){toast('Could not import this save file.')}e.target.value='';}
 function openDB(){return new Promise(resolve=>{try{if(!('indexedDB' in window))return resolve(null);const r=indexedDB.open('legacy-family-save',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('worlds'))r.result.createObjectStore('worlds')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>resolve(null)}catch(e){resolve(null)}})}
 function storageGet(){try{return JSON.parse(localStorage.getItem('legacy-snapshot-v1')||'null')}catch(e){return null}}
 function storageSet(){try{localStorage.setItem('legacy-snapshot-v1',JSON.stringify(state));return true}catch(e){return false}}
@@ -431,7 +431,7 @@ function bind(){
  const ro=new ResizeObserver(()=>{if(currentTab==='tree'&&state){if(needsFit)fitScene();drawGraph()}});ro.observe($('#canvas-wrap'));
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveGame()});
 }
-async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
+async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
 window.LEGACY_TEST={getState:()=>state,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice};
