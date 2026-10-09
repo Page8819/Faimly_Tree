@@ -381,27 +381,22 @@ function reviewAttentionPerson(id){
  if(!get(id))return;
  showPersonStats(id,'history');
 }
-function showAttentionInbox(page=0){
+function showAttentionInbox(){
  if(state.pendingChoice||state.pendingSuccession)return;
- const items=LEGACY_ATTENTION.unread(state),size=4,total=Math.max(1,Math.ceil(items.length/size));
- page=Math.max(0,Math.min(total-1,Number(page)||0));
- const cards=items.slice(page*size,(page+1)*size).map(a=>{
+ const items=LEGACY_ATTENTION.unread(state);
+ const cards=items.map(a=>{
   const p=get(a.personId);
   if(!p)return '';
   return '<button class="attention-list-item" data-attention-person="'+esc(p.id)+'"><span class="attention-list-dot '+(a.priority>=4?'urgent':'')+'">!</span><span class="attention-list-copy"><strong>'+esc(full(p))+'</strong><small>'+esc(a.label)+' · '+a.year+'</small><em>'+esc(a.message)+'</em></span><span class="attention-list-arrow">→</span></button>';
  }).join('');
- showModal('<div class="attention-inbox-sheet"><div class="attention-inbox-title"><div><div class="eyebrow">FAMILY UPDATES</div><h2>Who needs attention?</h2></div><button class="attention-inbox-close" id="attention-close" aria-label="Close updates" type="button">✕</button></div><p class="attention-inbox-intro">Important changes stay here until you review the person or dismiss the reminder.</p><div class="attention-inbox-items">'+(items.length?cards:'<p class="person-page-empty">Everyone is up to date.</p>')+'</div><div class="attention-inbox-foot">'+(total>1?'<button id="attention-prev" '+(page===0?'disabled':'')+'>← Prev</button><span>Page '+(page+1)+' / '+total+'</span><button id="attention-next" '+(page===total-1?'disabled':'')+'>Next →</button>':'<span>'+items.length+' unread update'+(items.length===1?'':'s')+'</span>')+'</div><div class="attention-inbox-bottom"><button id="attention-clear" '+(!items.length?'disabled':'')+'>Dismiss all reminders</button></div></div>');
+ showModal('<div class="attention-inbox-sheet"><div class="attention-inbox-title"><div><div class="eyebrow">FAMILY UPDATES</div><h2>Who needs attention?</h2></div><button class="attention-inbox-close" id="attention-close" aria-label="Close updates" type="button">✕</button></div><p class="attention-inbox-intro">Important changes stay here until you review the person or dismiss the reminder.</p><div class="attention-inbox-items" role="region" aria-label="Unread family reminders — scroll to see more" tabindex="0">'+(items.length?cards:'<p class="person-page-empty">Everyone is up to date.</p>')+'</div><div class="attention-inbox-foot"><span>'+items.length+' unread update'+(items.length===1?'':'s')+'</span><span class="attention-scroll-hint">'+(items.length>4?'Swipe to see more ↓':'')+'</span></div><div class="attention-inbox-bottom"><button id="attention-clear" '+(!items.length?'disabled':'')+'>Dismiss all reminders</button></div></div>');
  $('#modal-content').classList.add('attention-inbox-dialog');
  $('#modal-backdrop').classList.add('attention-inbox-backdrop');
  $('#attention-close').onclick=closeModal;
- if(total>1){
-  $('#attention-prev').onclick=()=>showAttentionInbox(page-1);
-  $('#attention-next').onclick=()=>showAttentionInbox(page+1);
- }
  $('#attention-clear').onclick=()=>{
   LEGACY_ATTENTION.dismissAll(state);
   saveSoon();renderAttention();if(currentTab==='tree')drawGraph();if(currentTab==='people')renderPeople();
-  showAttentionInbox(0);
+  showAttentionInbox();
  };
  $$('[data-attention-person]').forEach(b=>b.onclick=()=>reviewAttentionPerson(b.dataset.attentionPerson));
 }
