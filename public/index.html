@@ -28,6 +28,28 @@
     <div class="calendar-conditions"><strong id="calendar-clock">9:00 AM EST · New York</strong><span id="calendar-work">Your work schedule appears here</span><span id="calendar-holiday" class="calendar-holiday"></span></div>
     <div class="calendar-steps" aria-label="Advance time"><button type="button" id="advance-hour" aria-label="Advance one real hour">+1h</button><button type="button" id="advance-day" aria-label="Advance one calendar day">+1 day</button><button type="button" id="advance-month" aria-label="Advance one calendar month">+1 month</button></div>
   </section>
+  <section id="living-timeline" class="living-timeline" aria-label="Living timeline simulation">
+    <div class="living-timeline-top">
+      <div class="living-timeline-heading"><strong>Living timeline</strong><span id="timeline-status">Paused · time moves only when you press Play</span></div>
+      <div class="living-timeline-actions">
+        <label class="timeline-speed-label" for="timeline-speed">1 year =</label>
+        <select id="timeline-speed" aria-label="Real time per in-game year">
+          <option value="1">1 minute</option>
+          <option value="5">5 minutes</option>
+          <option value="15" selected>15 minutes</option>
+          <option value="30">30 minutes</option>
+          <option value="60">1 hour</option>
+        </select>
+        <button id="timeline-play" class="timeline-play" type="button" aria-label="Play living timeline">▶ Play</button>
+      </div>
+    </div>
+    <div class="living-timeline-track" role="progressbar" aria-label="Progress through the current game year" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="timeline-track">
+      <div class="living-timeline-fill" id="timeline-fill"></div>
+      <div class="living-timeline-months" id="timeline-months">
+        <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span>
+      </div>
+    </div>
+  </section>
   <main class="workspace">
     <section class="workspace-primary" id="primary-panel">
       <div id="tree-view" class="tree-view">
@@ -72,6 +94,7 @@
 <script src="./living-impact.js"></script>
 <script src="./attention.js"></script>
 <script src="./calendar.js"></script>
+<script src="./timeline.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>
