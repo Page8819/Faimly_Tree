@@ -6,7 +6,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  function node(selector){
   if(!els.has(selector))els.set(selector,{
    innerHTML:'',textContent:'',value:'',scrollTop:0,dataset:{},
-   classList:(()=>{const values=new Set();return {add(x){values.add(x)},remove(x){values.delete(x)},toggle(x,force){const enable=force===undefined?!values.has(x):force;enable?values.add(x):values.delete(x);return enable},contains(x){return values.has(x)}}})(),
+   classList:(()=>{const values=new Set();return {add(...xs){xs.forEach(x=>values.add(x))},remove(...xs){xs.forEach(x=>values.delete(x))},toggle(x,force){const enable=force===undefined?!values.has(x):force;enable?values.add(x):values.delete(x);return enable},contains(x){return values.has(x)}}})(),
    getBoundingClientRect(){return {width:390,height:360,left:0,top:0}},
    getContext(){return ctx},
    addEventListener(type,callback){(this.handlers??={})[type]=callback},setPointerCapture(){},setAttribute(){},appendChild(){},remove(){},
@@ -78,6 +78,8 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.match(node('#modal-content').innerHTML,/Adjust budget/);
  api.showPersonStats(state.controlledId,'history');
  assert.match(node('#modal-content').innerHTML,/Family chronicle/);
+ api.showPersonStats(state.controlledId,'stories');
+ assert.match(node('#modal-content').innerHTML,/Family stories/);
  // Clicks within the panel stay open; taps on the dark backdrop close it.
  node('#modal-backdrop').handlers.click({target:{id:'modal-content'}});
  assert.equal(node('#modal-backdrop').classList.contains('hidden'),false);
@@ -149,7 +151,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  for(let y=0;y<60;y++){
   const pending=state.pendingChoice;
   if(pending){
-   const choice=pending.kind==='medical'?'primary':pending.kind==='event'?pending.event.options[0][0]:actions[pending.kind]||'stable';
+   const choice=pending.kind==='medical'?'primary':pending.kind==='living'?pending.event.options.find(o=>sandbox.LEGACY_LIVING_DECISIONS.preview(state.people[pending.personId],pending.event,o[0],state.people,state.year).ok)?.[0]||pending.event.options.at(-1)[0]:pending.kind==='followup'?'finish':pending.kind==='event'?pending.event.options[0][0]:actions[pending.kind]||'stable';
    api.resolveLifeChoice(choice);
   }
   if(state.pendingSuccession){
@@ -162,5 +164,24 @@ test('game boots, offers a choice, advances time and hands off the family',async
  }
  assert.ok(state.year>=2029);
  assert.ok(Object.values(state.people).every(p=>p.medical&&p.schooling&&p.career&&p.finance),'new engines persist across generations');
+ // Living Decisions: modal, known costs, actual aftermath, and inspectable family history.
+ state.pendingChoice=null;state.pendingSuccession=null;
+ const lead=state.people[state.controlledId];
+ const living={kind:'unemployed',key:'living-unemployed',title:'An employment crossroads.',text:'No current work. What now?',tag:'LIVING SITUATION',
+  personIds:[lead.id],targetId:null,cause:'Loss of work',facts:{savings:lead.wealth},
+  options:[['apply','Apply for work','Look for a new occupation.']]};
+ state.pendingChoice={kind:'living',personId:lead.id,event:living,year:state.year};
+ api.showLifeChoice();
+ assert.match(node('#modal-content').innerHTML,/living-option-stack/);
+ assert.match(node('#modal-content').innerHTML,/Known costs/);
+ api.resolveLifeChoice('apply');
+ assert.equal(state.pendingChoice,null);
+ assert.match(node('#modal-content').innerHTML,/Weekly time committed/);
+ assert.ok(state.decisionLedger.length>0);
+ assert.ok(state.storylines.length>0);
+ api.showPersonStats(lead.id,'stories');
+ assert.match(node('#modal-content').innerHTML,/An employment crossroads/);
+ api.showStoryDetails(lead.id,state.storylines.at(-1).id);
+ assert.match(node('#modal-content').innerHTML,/Loss of work/);
  assert.deepEqual(errors,[],'simulation should not log errors');
 });
