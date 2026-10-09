@@ -64,7 +64,7 @@ function birth(a,b,adopted=false){
  let familyParent=a.inFamily?a:(b?.inFamily?b:a),last=familyParent.last;
  const gen=Math.max(a.gen,b?.gen??a.gen)+1;
  const p=createPerson({first,last,sex,birthYear:state.year,gen,parentIds:adopted?[]:b?[a.id,b.id]:[a.id],adoptiveParentIds:adopted?(b?[a.id,b.id]:[a.id]):[],city:a.city,inFamily:!!(a.inFamily||b?.inFamily),education:0,jobLevel:0,wealth:0});
- LEGACY_CONSEQUENCES.childStart(p,[a,b]);bond(p,a,30);if(b)bond(p,b,30);
+ LEGACY_CONSEQUENCES.childStart(p,[a,b]);bond(p,a,30);if(b)bond(p,b,30);const siblings=[...new Map([...kids(a),...(b?kids(b):[])].filter(q=>q.id!==p.id).map(q=>[q.id,q])).values()];for(const sibling of siblings)bond(p,sibling,12);
  if(!adopted&&b){p.eyeTint=chance(.47)?a.eyeTint:b.eyeTint;p.hairTint=chance(.47)?a.hairTint:b.hairTint}
  addEvent(state.year,adopted?'adoption':'birth',adopted?`${full(p)} joined the family through adoption.`:`${full(p)} was born to ${full(a)}${b?' and '+full(b):''}.`,[p.id,a.id,b?.id]);return p;
 }
@@ -139,7 +139,7 @@ function simulateOneYear(){state.year++;
   LEGACY_SUCCESSION.prepare(state,active.id);
  }
 }
-function related(p){let ids=[...p.parentIds,...p.adoptiveParentIds,...kids(p).map(v=>v.id),...(p.partnerId?[p.partnerId]:[]),...p.formerPartners];return [...new Set(ids)].map(get).filter(Boolean)}
+function related(p){const ps=new Set([...(p.parentIds||[]),...(p.adoptiveParentIds||[])]);const siblingIds=ps.size?persons().filter(q=>q.id!==p.id&&[...(q.parentIds||[]),...(q.adoptiveParentIds||[])].some(id=>ps.has(id))).map(q=>q.id):[];let ids=[...ps,...kids(p).map(v=>v.id),...siblingIds,...(p.partnerId?[p.partnerId]:[]),...(p.formerPartners||[])];return [...new Set(ids)].map(get).filter(Boolean)}
 
 const LIFE_CHOICES={
  launch:{tag:'COMING OF AGE',title:'Your future begins today.',text:'Adulthood brings opportunity—and responsibility. How will you start building your own life?',options:[['college','Go to college','Borrow or spend $14,000 to study and gain qualifications.'],['trade','Learn a trade','Invest $2,500 in practical skills and begin earning.'],['work','Start working','Earn right away and begin building savings.']]},
@@ -323,7 +323,7 @@ function showPersonStats(id,tab='overview',page=0){
  const rel=related(p).filter(Boolean).map(person=>{
   const parent=parents.some(x=>x.id===person.id)||adopters.some(x=>x.id===person.id);
   const child=children.some(x=>x.id===person.id);
-  const type=parent?'Parent':child?'Child':q?.id===person.id?'Partner':p.formerPartners?.includes(person.id)?'Former partner':'Family';
+  const pParents=new Set([...(p.parentIds||[]),...(p.adoptiveParentIds||[])]);const sharedParents=[...(person.parentIds||[]),...(person.adoptiveParentIds||[])].filter(parentId=>pParents.has(parentId));const type=parent?'Parent':child?'Child':sharedParents.length?'Sibling':q?.id===person.id?'Partner':p.formerPartners?.includes(person.id)?'Former partner':'Family';
   return {person,type,strength:Math.round(p.bonds?.[person.id]??50),social:LEGACY_RELATIONSHIPS.relation(p,person)};
  });
  const occupation=age(p)<18?'Growing up':p.retired?'Retired':jobs[Math.min(p.jobLevel??0,5)]||'Unemployed';
