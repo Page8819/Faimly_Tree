@@ -390,6 +390,32 @@ function advance(years,continuation=false){
 }
 function showModal(html){$('#modal-content').innerHTML=html;$('#modal-backdrop').classList.remove('hidden')}
 function closeModal(){if(state?.pendingChoice||state?.pendingSuccession)return;$('#modal-backdrop').classList.add('hidden')}
+
+function showSuccession(){
+ const pending=state.pendingSuccession;if(!pending)return;
+ const from=get(pending.fromId),heirs=LEGACY_SUCCESSION.candidates(state,pending.fromId),legacy=LEGACY_SUCCESSION.familyLegacy(state);
+ if(!from){state.pendingSuccession=null;saveSoon();return;}
+ const intro='<div class="eyebrow">A LEGACY CONTINUES / '+state.year+'</div><h2>Choose the next generation.</h2><p>'+esc(full(from))+' has died at age '+(from.deathYear-from.birthYear)+'. Their story lives on through the people they leave behind. Choose whose life you will guide next.</p>';
+ const stats='<div class="life-choice-meta">'+legacy.generations+' generations · '+legacy.living+' living family members · Family net worth '+money(legacy.wealth)+'</div>';
+ if(!heirs.length){
+  showModal(intro+stats+'<p>No surviving family members remain to inherit control. The family history is still available.</p><div class="modal-actions"><button class="primary" id="succession-end">Review family history</button></div>');
+  $('#succession-end').onclick=()=>{state.pendingSuccession=null;state.remainingYears=0;saveSoon();closeModal();setTab('history');};
+  return;
+ }
+ showModal(intro+stats+'<div class="life-choice-options">'+heirs.map((h,i)=>'<button class="life-choice-option" data-heir="'+esc(h.id)+'"><span class="life-choice-number">'+String(i+1).padStart(2,'0')+'</span><span><strong>'+esc(h.name)+'</strong><small>'+esc(h.role)+' · Age '+h.age+' · Generation '+h.gen+' · '+esc(h.city)+'</small></span><span class="life-choice-arrow">→</span></button>').join('')+'</div><p class="modal-note">Your new character retains the upbringing, relationships and opportunities created by earlier generations.</p>');
+ $('[data-heir]').forEach(b=>b.onclick=()=>chooseSuccessor(b.dataset.heir));
+}
+function chooseSuccessor(id){
+ const transition=LEGACY_SUCCESSION.choose(state,id);if(!transition)return;
+ const old=get(transition.from.id),next=get(transition.to.id);
+ addEvent(state.year,'succession',full(old)+' passed the family story to '+full(next)+'.',[old.id,next.id]);
+ needsFit=true;render();saveSoon();
+ const left=Math.max(0,Math.min(100,Number(state.remainingYears)||0));
+ showModal('<div class="eyebrow">THE NEXT GENERATION / '+state.year+'</div><h2>'+esc(full(next))+'</h2><p>You now control '+esc(full(next))+', age '+age(next)+'. The family story continues with '+transition.legacy.generations+' generations recorded.</p><p class="modal-note">'+esc(LEGACY_CONSEQUENCES.describe(next))+'</p><div class="modal-actions">'+(left?'<button class="primary" id="succession-continue">Continue '+left+' year'+(left===1?'':'s')+' →</button>':'')+'<button class="secondary" id="succession-finish">'+(left?'Stop here':'Explore the family')+'</button></div>');
+ if(left)$('#succession-continue').onclick=()=>{state.remainingYears=0;closeModal();advance(left,true);};
+ $('#succession-finish').onclick=()=>{state.remainingYears=0;saveSoon();closeModal();};
+}
+
 function newWorldModal(){showModal(`<div class="eyebrow">THE BEGINNING OF EVERYTHING</div><h2>Begin a new legacy</h2><p>Start with one person, two parents, and a sibling. Every life that follows grows from this history.</p><label for="new-name">Founding character</label><input maxlength="50" id="new-name" class="field-input" value="Alex Morgan" placeholder="First and last name" /><label for="new-sex">Founding character</label><select id="new-sex" class="field-input"><option value="male">Male</option><option value="female">Female</option></select><label for="new-year">Starting year</label><input id="new-year" class="field-input" type="number" min="1800" max="2200" value="2026" /><div class="modal-warning">Creating a new world replaces the current active game. Export your family history first if you want to keep it.</div><div class="modal-actions"><button class="secondary" id="cancel-modal">Cancel</button><button class="primary" id="create-world">Create family →</button></div>`);
  $('#cancel-modal').onclick=closeModal;$('#create-world').onclick=()=>{let v=$('#new-name').value.trim(),y=Number($('#new-year').value);if(!v||!Number.isInteger(y)||y<1800||y>2200){toast('Enter a name and a starting year from 1800 to 2200.');return}newWorld(v,$('#new-sex').value,y);closeModal();saveSoon();setTab('tree');render();toast('A new family story has begun.');};}
 function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
@@ -434,5 +460,5 @@ function bind(){
 async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
-window.LEGACY_TEST={getState:()=>state,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice};
+window.LEGACY_TEST={getState:()=>state,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showSuccession,chooseSuccessor};
 })();
