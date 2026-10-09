@@ -69,11 +69,11 @@ test('trade work stops for modeled holidays but essential healthcare remains sta
  assert.equal(carpenter.scheduled,false);assert.equal(carpenter.reason,'Holiday leave');
  state.people.p.career.jobId='nurse';
  const nurse=C.schedule(state.people.p,state,{...jobs,nurse:{name:'Nurse',sector:'Healthcare',minAge:21}});
- assert.equal(nurse.scheduled,false,'nurse has three modeled shifts, not seven days per week');
+ assert.equal(nurse.scheduled,true,'essential healthcare remains staffed on observed holidays');
  state.calendar.date='2026-07-04';
  const weekendNurse=C.schedule(state.people.p,state,{...jobs,nurse:{name:'Nurse',sector:'Healthcare',minAge:21}});
- assert.equal(weekendNurse.scheduled,true);
- assert.equal(weekendNurse.hours,12);
+ assert.equal(weekendNurse.scheduled,false,'this nurse has Saturday off despite the hospital operating');
+ assert.equal(nurse.hours,12);
  state.people.p.career.jobId='physician';state.calendar.date='2026-07-03';
  assert.equal(C.schedule(state.people.p,state,jobs).reason,'Holiday leave','clinic schedules differ from emergency shifts');
  state.people.p.career.jobId='teacher';state.calendar.date='2026-07-06';
