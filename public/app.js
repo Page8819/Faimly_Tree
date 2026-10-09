@@ -158,27 +158,35 @@ function maybeLifeChoice(){
   if(a>=38&&a<=63)available.push('midlife');
   if(available.length)kind=pick(available);
  }
+ if(!kind&&chance(state.realism==='casual'?.30:.24)){
+  const event=LEGACY_EVENTS.propose({p,people:state.people,year:state.year,rnd});
+  if(event){state.pendingChoice={personId:p.id,kind:'event',year:state.year,event};return true;}
+ }
  if(!kind)return false;
  state.pendingChoice={personId:p.id,kind,year:state.year};
  return true;
 }
 function showLifeChoice(){
  const pending=state.pendingChoice;if(!pending)return;
- const p=get(pending.personId),choice=LIFE_CHOICES[pending.kind];
+ const p=get(pending.personId),choice=pending.kind==='event'?pending.event:LIFE_CHOICES[pending.kind];
  if(!p||!choice){state.pendingChoice=null;saveSoon();return;}
  showModal('<div class="eyebrow">LIFE DECISION / '+esc(choice.tag)+'</div><div class="life-choice-meta">'+esc(full(p))+' · Age '+age(p)+' · '+state.year+'</div><h2>'+esc(choice.title)+'</h2><p>'+esc(choice.text)+'</p><div class="life-choice-options">'+choice.options.map((o,i)=>'<button class="life-choice-option" data-life-option="'+esc(o[0])+'"><span class="life-choice-number">0'+(i+1)+'</span><span><strong>'+esc(o[1])+'</strong><small>'+esc(o[2])+'</small></span><span class="life-choice-arrow">→</span></button>').join('')+'</div><p class="modal-note">Your decision changes this person’s life and is remembered in the family chronicle.</p>');
  $('.life-choice-option').forEach(b=>b.onclick=()=>resolveLifeChoice(b.dataset.lifeOption));
 }
 function resolveLifeChoice(action){
  const pending=state.pendingChoice;if(!pending)return;
- const p=get(pending.personId),template=LIFE_CHOICES[pending.kind];
+ const p=get(pending.personId),template=pending.kind==='event'?pending.event:LIFE_CHOICES[pending.kind];
  if(!p||!template)return;
  const option=template.options.find(o=>o[0]===action);if(!option)return;
  const fortune=state.realism==='casual'?.82:state.realism==='strict'?.52:.67;
  const changeMoney=amount=>{p.wealth=Math.max(-100000,Math.round(p.wealth+amount));};
  const kin=related(p).filter(alive).filter(q=>q.id!==p.id).sort((a,b)=>a.wealth-b.wealth);
  let result='',others=[];
- switch(action){
+ if(pending.kind==='event'){
+  const story=LEGACY_EVENTS.resolve({p,people:state.people,year:state.year,event:pending.event,option:action,rnd,cities});
+  if(!story)return;
+  result=story.result;others=story.others||[];
+ }else switch(action){
  case 'college':p.education=Math.min(4,p.education+2);changeMoney(-14000);result='Completed advanced education, taking on $14,000 in costs.';break;
  case 'trade':p.education=Math.min(4,p.education+1);p.jobLevel=Math.max(p.jobLevel,2);changeMoney(-2500);result='Learned a skilled trade and entered the workforce.';break;
  case 'work':p.jobLevel=Math.max(p.jobLevel,1);changeMoney(4500);result='Started working immediately and saved $4,500.';break;
