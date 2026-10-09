@@ -1,0 +1,21 @@
+name: Validate Family Tree
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  javascript-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check game JavaScript syntax
+        run: node --check public/app.js
+      - name: Confirm static entry points
+        run: |
+          test -s public/index.html
+          test -s public/styles.css
+          test -s public/app.js
+          test -s wrangler.jsonc
