@@ -14,17 +14,17 @@ test('game boots, offers a choice, advances time and hands off the family',async
   });return els.get(selector);
  }
  const storage={};
- const errors=[];
+ const errors=[];const documentHandlers={};const fakeIntervals=new Map();let nextTimer=1;
  const sandbox={
   console:{log(){},warn(){},error(e){errors.push(String(e))}},
-  document:{querySelector:node,querySelectorAll(){return []},addEventListener(){},visibilityState:'visible'},
+  document:{querySelector:node,querySelectorAll(){return []},addEventListener(type,handler){documentHandlers[type]=handler},visibilityState:'visible'},
   localStorage:{getItem(k){return storage[k]||null},setItem(k,v){storage[k]=v}},
   location:{protocol:'https:'},navigator:{},devicePixelRatio:1,
-  setTimeout,clearTimeout,ResizeObserver:class{observe(){}},
+  setTimeout,clearTimeout,setInterval(handler){const id=nextTimer++;fakeIntervals.set(id,handler);return id},clearInterval(id){fakeIntervals.delete(id)},ResizeObserver:class{observe(){}},
   requestAnimationFrame(f){f()},Intl,Date,Math,Blob,URL
  };
  sandbox.window=sandbox;
- for(const name of ['careers.js','education.js','medicine.js','human.js','economy.js','consequences.js','events.js','succession.js','relationships.js','living-context.js','living-psychology.js','living-decisions.js','living-storylines.js','living-impact.js','attention.js','calendar.js','app.js']){
+ for(const name of ['careers.js','education.js','medicine.js','human.js','economy.js','consequences.js','events.js','succession.js','relationships.js','living-context.js','living-psychology.js','living-decisions.js','living-storylines.js','living-impact.js','attention.js','calendar.js','timeline.js','app.js']){
   const source=fs.readFileSync(path.join(__dirname,'../public',name),'utf8');
   vm.runInNewContext(source,sandbox,{filename:name,timeout:2000});
  }
@@ -34,13 +34,34 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.ok(api,'integration hooks installed');
  let state=api.getState();assert.equal(state.year,2026);
  assert.equal(state.calendar.date,'2026-01-01');
+ assert.equal(state.timeline.speedMinutes,15,'default is fifteen real minutes per game year');
+ assert.match(node('#timeline-status').textContent,/Paused/);
+ assert.match(node('#timeline-months').innerHTML,/Jan/);
+ api.timelineSpeed(1);
+ assert.equal(state.timeline.speedMinutes,1);
+ assert.equal(api.timelinePlay(),true);
+ assert.equal(fakeIntervals.size,1);
+ assert.match(node('#timeline-play').textContent,/Pause/);
+ const accelerated=api.timelineAdvance(1000);
+ assert.ok(accelerated>=5&&accelerated<=7,'one minute pacing should move about six days per second');
+ assert.equal(state.year,2026);
+ assert.ok(state.calendar.daysElapsed>=accelerated);
+ assert.equal(api.timelinePause(),true);
+ assert.equal(fakeIntervals.size,0);
+ assert.match(node('#timeline-play').textContent,/Play/);
+ api.timelineSpeed(15);
+ // Reload never persists a playing flag.
+ assert.equal(state.timeline.playing,undefined);
+ const dateAfterFast=state.calendar.date;
+ assert.ok(dateAfterFast>'2026-01-01');
+
  assert.match(node('#calendar-date').textContent,/January • 1st • 2026/);
  assert.match(node('#header-day-count').textContent,/DAY 001 \/ 365/);
  api.advanceCalendar('day',1);
- assert.equal(state.calendar.date,'2026-01-02');
+ assert.equal(state.calendar.date,sandbox.LEGACY_CALENDAR.shiftDays(dateAfterFast,1));
  assert.equal(state.year,2026,'one day should not run the annual life simulator');
  api.advanceCalendar('month',1);
- assert.equal(state.calendar.date,'2026-02-02');
+ assert.equal(state.calendar.date,sandbox.LEGACY_CALENDAR.shiftMonths(sandbox.LEGACY_CALENDAR.shiftDays(dateAfterFast,1),1));
  api.advanceCalendar('hour',1);
  assert.equal(state.calendar.minutes,600);
  assert.equal(state.year,2026);
@@ -129,7 +150,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  api.advance(1);
  state=api.getState();
  assert.equal(state.year,2027);
- assert.equal(state.calendar.date,'2027-02-02','yearly fast-forward should preserve the calendar month and day');
+ assert.equal(state.calendar.date,'2027-'+state.calendar.date.slice(5),'yearly fast-forward should preserve the calendar month and day');
  assert.equal(state.pendingChoice?.kind,'direction');
  assert.match(node('#modal-content').innerHTML,/Where does your ambition lead/);
  api.resolveLifeChoice('stable');
