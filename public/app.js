@@ -415,6 +415,97 @@ function renderStats(){const all=persons(),living=all.filter(alive),family=all.f
  $('#time-copy').textContent=`${fmtN(all.length)} lives woven across ${generation} generations.`;
  $$('.mode-toggle button').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.mode));
 }
+
+function calendarTime(minutes){
+ const h=Math.floor(minutes/60),m=Math.round(minutes%60);
+ return (h%12||12)+':'+String(m).padStart(2,'0')+(h<12?' AM':' PM');
+}
+function renderCalendar(){
+ const c=LEGACY_CALENDAR.ensure(state),parsed=LEGACY_CALENDAR.parse(c.date);
+ const p=get(state.selectedId)||get(state.controlledId);
+ const summary=p?LEGACY_CALENDAR.schedule(p,state,LEGACY_CAREERS.jobs):null;
+ const count=LEGACY_CALENDAR.dayOfYear(parsed.year,parsed.month,parsed.day);
+ $('#header-day-count').textContent='DAY '+String(count).padStart(3,'0')+' / '+(LEGACY_CALENDAR.leap(parsed.year)?366:365);
+ $('#calendar-date').textContent=LEGACY_CALENDAR.dateLabel(c.date);
+ $('#calendar-weekday').textContent=LEGACY_CALENDAR.weekdayLabel(c.date)+' · '+c.daysElapsed.toLocaleString()+' days elapsed';
+ $('#calendar-clock').textContent=summary?calendarTime(summary.minutes)+' '+summary.abbreviation+' · '+p.city:calendarTime(c.minutes);
+ $('#calendar-work').textContent=summary?(summary.sector+' · '+summary.reason+(summary.scheduled?' · '+calendarTime(summary.start)+'–'+calendarTime(summary.end):'')):'No selected character';
+ $('#calendar-holiday').textContent=summary?.holiday||'';
+ $('#calendar-detail').setAttribute('aria-label','Open calendar details for '+c.date);
+}
+function showCalendarDetails(){
+ if(state.pendingChoice||state.pendingSuccession)return;
+ const c=LEGACY_CALENDAR.ensure(state),p=get(state.selectedId)||get(state.controlledId),info=p?LEGACY_CALENDAR.schedule(p,state,LEGACY_CAREERS.jobs):null;
+ if(!p)return;
+ const upcoming=[];let date=c.date;
+ for(let i=0;i<=100&&upcoming.length<4;i++){
+  const title=LEGACY_CALENDAR.holiday(date,p.city);
+  if(title)upcoming.push({date,title});
+  date=LEGACY_CALENDAR.shiftDays(date,1);
+ }
+ const locations=persons().filter(x=>alive(x)).reduce((a,q)=>{if(!a.includes(q.city))a.push(q.city);return a},[]).slice(0,4);
+ const clocks=locations.map(city=>{
+  const t=LEGACY_CALENDAR.atPerson(state,{city});
+  return '<div class="calendar-modal-row"><span>'+esc(city)+'</span><strong>'+calendarTime(t.minutes)+' '+esc(t.abbreviation)+'</strong></div>';
+ }).join('');
+ const holidays=upcoming.map(item=>'<div class="calendar-modal-row"><span>'+esc(item.title)+'</span><strong>'+esc(item.date)+'</strong></div>').join('')||'<p>No modeled holidays in the next 100 days.</p>';
+ const reports=c.dailyJournal.slice(-3).reverse().map(e=>'<div class="calendar-modal-row"><span>'+esc(e.date)+' · '+esc(e.sector||'Work')+'</span><strong>'+e.hours+' planned hr</strong></div>').join('');
+ const here=LEGACY_CALENDAR.cityInfo(p.city);
+ showModal('<div class="calendar-modal"><div class="eyebrow">WORLD CLOCK · '+esc(here.country)+'</div><h2>'+esc(LEGACY_CALENDAR.dateLabel(c.date))+'</h2><p>'+esc(LEGACY_CALENDAR.weekdayLabel(c.date))+' · '+calendarTime(info.minutes)+' '+esc(info.abbreviation)+' · '+esc(p.city)+'</p><div class="calendar-modal-section"><h3>'+esc(full(p))+' · '+esc(info.sector)+'</h3><div class="calendar-modal-row"><span>Today</span><strong>'+esc(info.reason)+'</strong></div><div class="calendar-modal-row"><span>Standard shift</span><strong>'+esc(info.scheduled?calendarTime(info.start)+'–'+calendarTime(info.end):'No shift today')+'</strong></div><div class="calendar-modal-row"><span>Holiday</span><strong>'+esc(info.holiday||'None')+'</strong></div></div><div class="calendar-modal-section"><h3>Upcoming public holidays</h3>'+holidays+'</div><div class="calendar-modal-section"><h3>Family time zones</h3>'+clocks+'</div><div class="calendar-modal-actions"><button id="calendar-close" class="primary">Return to family</button></div></div>');
+ $('#calendar-close').onclick=closeModal;
+}
+function calendarDayLog(){
+ const c=LEGACY_CALENDAR.ensure(state);
+ const entry=LEGACY_CALENDAR.dayReport(state,LEGACY_CAREERS.jobs);
+ if(entry&&entry.personId){
+  const p=get(entry.personId);
+  if(p&&entry.hours){
+   if(!p.workHours)p.workHours={};
+   const n=p.workHours[String(state.year)]||{scheduledHours:0,scheduledDays:0,holidayDays:0};
+   n.scheduledHours+=entry.hours;n.scheduledDays++;p.workHours[String(state.year)]=n;
+   for(const y of Object.keys(p.workHours))if(+y<state.year-2)delete p.workHours[y];
+  }else if(p&&entry.holiday){
+   if(!p.workHours)p.workHours={};
+   const n=p.workHours[String(state.year)]||{scheduledHours:0,scheduledDays:0,holidayDays:0};
+   n.holidayDays++;p.workHours[String(state.year)]=n;
+  }
+ }
+ // A known birthday occurs on the actual calendar day, not automatically on January 1.
+ for(const p of persons()){
+  if(!alive(p)||p.birthDatePrecision!=='day'||p.birthYear>=state.year)continue;
+  if(p.birthDate.slice(5)===c.date.slice(5))addEvent(state.year,'birthday',full(p)+' celebrated a birthday.',[p.id]);
+ }
+}
+function advanceCalendar(unit,amount=1){
+ if(busy||state.pendingChoice||state.pendingSuccession)return;
+ if(state.nextId>MAX_PEOPLE){toast('2,000-person prototype limit reached.');return;}
+ const c=LEGACY_CALENDAR.ensure(state);
+ busy=true;const start=c.date;let elapsed=0;
+ try{
+  if(unit==='hour'){
+   const oldYear=state.year;
+   LEGACY_CALENDAR.updateFromInstant(state,LEGACY_CALENDAR.instantFor(c.date,c.minutes,LEGACY_CALENDAR.masterZone(state))+3600000*amount);
+   if(+c.date.slice(0,4)>oldYear){simulateOneYear();if(!state.pendingChoice&&!state.pendingSuccession)maybeLifeChoice();}
+   if(c.date!==start)calendarDayLog();
+   elapsed=1;
+  }else{
+   const destination=unit==='month'?LEGACY_CALENDAR.shiftMonths(c.date,amount):LEGACY_CALENDAR.shiftDays(c.date,amount);
+   const duration=Math.round((Date.parse(destination+'T12:00:00Z')-Date.parse(start+'T12:00:00Z'))/86400000);
+   for(let i=0;i<duration;i++){
+    c.date=LEGACY_CALENDAR.shiftDays(c.date,1);c.daysElapsed++;elapsed++;
+    if(+c.date.slice(0,4)>state.year){simulateOneYear();if(!state.pendingChoice&&!state.pendingSuccession)maybeLifeChoice();}
+    calendarDayLog();
+    if(state.pendingChoice||state.pendingSuccession||state.nextId>MAX_PEOPLE)break;
+   }
+  }
+  needsFit=false;render();saveSoon();
+  if(state.pendingSuccession)showSuccession();
+  else if(state.pendingChoice)showLifeChoice();
+  else toast(elapsed===1&&unit==='hour'?'1 hour passed · '+LEGACY_CALENDAR.dateLabel(c.date):elapsed+' calendar day'+(elapsed===1?'':'s')+' passed · '+LEGACY_CALENDAR.dateLabel(c.date));
+ }catch(e){console.error(e);toast('Calendar error. The last saved game remains available.');}
+ finally{busy=false;}
+}
+
 function renderProfile(){const p=get(state.selectedId);if(!p)return;
  const parents=p.parentIds.map(get).filter(Boolean),adopters=p.adoptiveParentIds.map(get).filter(Boolean),children=kids(p),q=partner(p);
  const mine=state.mode==='family'||(p.id===state.controlledId);
