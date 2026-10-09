@@ -284,13 +284,46 @@ function renderProfile(){const p=get(state.selectedId);if(!p)return;
  <div class="panel-block"><div class="block-title">Life decisions <span class="block-sub">${state.mode==='individual'?'individual':'family'} control</span></div>${state.mode==='individual'&&p.id!==state.controlledId&&alive(p)?'<button class="action special" id="take-control" style="width:100%;margin-bottom:9px">▶ Live as '+esc(p.first)+'</button>':''}<div class="actions-grid">
  ${[['partner','♥ Find partner'],['child','✦ Grow family'],['career','↑ Career'],['educate','◈ Education'],['move','⌁ Relocate'],['support','♡ Support kin']].map(([a,l])=>`<button class="action ${a==='child'?'special':''}" data-action="${a}" ${canAct?'':'disabled'}>${l}</button>`).join('')}
  </div>${!alive(p)?'<div class="identity">This life has ended. Their history remains part of the family.</div>':state.mode==='individual'?'<div class="identity">Individual Control · Direct the currently selected life.</div>':'<div class="identity">Family Control · Direct anyone in the tree.</div>'}</div>
- <div class="panel-block"><div class="block-title">Personality & appearance</div>${[['Curiosity',p.traits.openness],['Discipline',p.traits.conscientiousness],['Sociability',p.traits.extraversion]].map(([label,value])=>`<div class="trait-row"><span>${label}</span><span class="trait-track"><span class="trait-fill" style="width:${Math.max(0,Math.min(100,value))}%"></span></span><span>${value}</span></div>`).join('')}<div class="identity">${esc(p.eyeTint)} eyes · ${esc(p.hairTint)} hair · illustrative inheritance model</div></div>
+ <div class="panel-block"><div class="block-title">Personality & appearance</div>${[['Curiosity',p.traits.openness],['Discipline',p.traits.conscientiousness],['Sociability',p.traits.extraversion],['Cooperation',p.traits.agreeableness],['Emotional sensitivity',p.traits.emotionality]].map(([label,value])=>`<div class="trait-row"><span>${label}</span><span class="trait-track"><span class="trait-fill" style="width:${Math.max(0,Math.min(100,value))}%"></span></span><span>${value}</span></div>`).join('')}<div class="identity">${esc(p.eyeTint)} eyes · ${esc(p.hairTint)} hair · illustrative inheritance model</div></div>
  <div class="panel-block"><div class="block-title">Life record <span class="block-sub">${events.length} recent events</span></div>${events.length?events.map(e=>`<div class="event-mini"><span class="event-mini-year">${e.year}</span><span>${esc(e.message)}</span></div>`).join(''):'<div class="empty-note">New milestones will appear here.</div>'}</div>
  <div class="profile-footer-note">Character traits, finances, and demographics are simplified for this prototype. The simulation is not a scientific prediction of real lives.</div>`;
  $$('#profile-content [data-person]').forEach(b=>b.addEventListener('click',()=>selectPerson(b.dataset.person)));
  $$('#profile-content [data-action]').forEach(b=>b.addEventListener('click',()=>decide(b.dataset.action)));
  const take=$('#take-control');if(take)take.onclick=()=>{state.controlledId=p.id;saveSoon();renderProfile();toast(`You are now living as ${p.first}.`)};
 }
+
+/* Immersive genealogy: select with a tap, hold to open an accessible full-profile sheet. */
+function showPersonStats(id){
+ if(state.pendingChoice||state.pendingSuccession)return;
+ const p=get(id);if(!p)return;
+ selectPerson(id);
+ const path=p.lifePath||{};
+ const history=state.events.filter(e=>Array.isArray(e.personIds)&&e.personIds.includes(p.id)).slice(-40).reverse();
+ const parents=p.parentIds.map(get).filter(Boolean),adopters=p.adoptiveParentIds.map(get).filter(Boolean);
+ const children=kids(p),relatives=related(p).filter(alive);
+ const links=relatives.map(q=>({person:q,strength:Math.round(p.bonds?.[q.id]??50)})).sort((a,b)=>b.strength-a.strength).slice(0,15);
+ const detailStats=[
+  ['Born',String(p.birthYear)],['Died',p.deathYear?String(p.deathYear):'—'],
+  ['Generation',String(p.gen+1)],['Estimated annual income',age(p)>=18&&!p.retired?money(incomeFor(p)):'Not working'],
+  ['Career level',String(p.jobLevel??0)+' / 6'],['Education level',String(p.education??0)+' / 4'],
+  ['Education debt',money(path.educationDebt||0)],['Career skills',String(path.skills||0)],
+  ['Career momentum',String(path.momentum||0)],['Financial discipline',String(path.discipline||0)],
+  ['Community ties',String(path.community||0)],['Business experience',String(path.enterprise||0)],
+  ['Family involvement',String(path.familyTime||0)],['Biological parents',String(parents.length)],
+  ['Adoptive parents',String(adopters.length)],['Children',String(children.length)]
+ ];
+ const summary=$('#profile-content').innerHTML.replace('id="take-control"','id="sheet-take-control"');
+ const details=detailStats.map(([label,value])=>'<div class="person-sheet-fact"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong></div>').join('');
+ const relationships=links.length?links.map(({person:q,strength})=>'<button class="person-sheet-relation" data-person="'+esc(q.id)+'"><span>'+esc(full(q))+'</span><span>'+strength+' / 100</span></button>').join(''):'<div class="empty-note">No living relatives in their immediate circle.</div>';
+ const events=history.length?history.map(e=>'<div class="event-mini"><span class="event-mini-year">'+esc(e.year)+'</span><span>'+esc(e.message)+'</span></div>').join(''):'<div class="empty-note">No recorded life events yet.</div>';
+ showModal('<div class="person-sheet"><div class="person-sheet-top"><div><div class="eyebrow">FAMILY RECORD / PERSON '+esc(p.id.toUpperCase())+'</div><div class="person-sheet-topname">'+esc(full(p))+'</div></div><button id="person-sheet-close" class="person-sheet-close" type="button" aria-label="Close person details">✕</button></div><div class="person-sheet-scroll">'+summary+'<section class="person-sheet-extra"><div class="block-title">Complete character statistics</div><div class="person-sheet-facts">'+details+'</div><div class="block-title">Relationship strengths</div><div class="person-sheet-relations">'+relationships+'</div><div class="block-title">Family chronicle · '+history.length+' recent records</div><div class="person-sheet-events">'+events+'</div></section></div></div>');
+ $('#person-sheet-close').onclick=closeModal;
+ $$('#modal-content [data-person]').forEach(b=>b.onclick=()=>showPersonStats(b.dataset.person));
+ $$('#modal-content [data-action]').forEach(b=>b.onclick=()=>{decide(b.dataset.action);if(!state.pendingChoice&&!state.pendingSuccession)showPersonStats(p.id);});
+ const take=$('#sheet-take-control');
+ if(take)take.onclick=()=>{state.controlledId=p.id;saveSoon();showPersonStats(p.id);toast('You are now living as '+p.first+'.');};
+}
+
 function visiblePeople(){const all=persons();if(scope==='all'){
  if(all.length<=250)return all;
  const keep=new Set([state.selectedId,state.founderId,state.rootId]);
@@ -358,13 +391,13 @@ function selectPerson(id){if(!get(id))return;state.selectedId=id;$('#profile-pan
 function renderPeople(){const search=$('#people-search').value.toLocaleLowerCase().trim();const list=persons().slice().sort((a,b)=>Number(alive(b))-Number(alive(a))||b.birthYear-a.birthYear);
  const filtered=list.filter(p=>(full(p)+' '+p.city+' '+(jobs[Math.min(p.jobLevel,5)]||'')).toLowerCase().includes(search));
  $('#people-list').innerHTML=filtered.slice(0,400).map(p=>`<button class="person-item ${p.id===state.selectedId?'selected':''}" data-person="${p.id}"><span class="person-avatar" style="${gradient(p)}">${esc(initials(p))}</span><span class="person-item-main"><span class="person-item-name">${esc(full(p))}</span><span class="person-item-info">${esc(p.city)} · ${ages(p)} · Gen ${p.gen+1}</span></span><span class="person-item-side">${alive(p)?'LIVING':'REMEMBERED'}</span></button>`).join('')+(filtered.length>400?`<div class="empty-note">Showing 400 of ${filtered.length} results. Refine your search.</div>`:'')||'<div class="empty-note">No matching family members.</div>';
- $$('#people-list [data-person]').forEach(b=>b.addEventListener('click',()=>selectPerson(b.dataset.person)));
+ $$('#people-list [data-person]').forEach(b=>b.addEventListener('click',()=>showPersonStats(b.dataset.person)));
 }
 function renderHistory(){const events=state.events.slice().sort((a,b)=>b.year-a.year||b.id-a.id).slice(0,450);let oldYear=null;
  $('#history-list').innerHTML=events.map(e=>{let head='';if(e.year!==oldYear){oldYear=e.year;head=`<div class="history-year">${e.year}</div>`}const name=e.personIds.map(get).filter(Boolean)[0];return `${head}<div class="history-item"><span class="history-marker">${({birth:'✦',death:'◆',relationship:'♥',adoption:'✦',move:'⌁',career:'↑',education:'◈',inheritance:'◇',family:'♡',milestone:'✧',choice:'⚖',succession:'♜'}[e.type]||'●')}</span><button data-event-person="${name?.id||''}"><div class="history-name">${esc(e.type.toUpperCase())}</div>${esc(e.message)}</button></div>`}).join('')+(state.events.length>450?'<div class="empty-note">Showing the latest 450 events. All events remain in the saved game and exported backup.</div>':'');
- $$('#history-list [data-event-person]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.eventPerson)selectPerson(b.dataset.eventPerson)}));
+ $$('#history-list [data-event-person]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.eventPerson)showPersonStats(b.dataset.eventPerson)}));
 }
-function setTab(tab){currentTab=tab;$$('.tab').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);b.setAttribute('aria-selected',String(b.dataset.tab===tab))});
+function setTab(tab){currentTab=tab;$('#app').classList.toggle('immersive-tree',tab==='tree');$$('.tab').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);b.setAttribute('aria-selected',String(b.dataset.tab===tab))});
  $('#tree-view').classList.toggle('hidden',tab!=='tree');$('#people-view').classList.toggle('hidden',tab!=='people');$('#history-view').classList.toggle('hidden',tab!=='history');
  if(tab==='tree'){needsFit=true;requestAnimationFrame(()=>layoutGraph())}if(tab==='people')renderPeople();if(tab==='history')renderHistory();
 }
@@ -460,5 +493,5 @@ function bind(){
 async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
-window.LEGACY_TEST={getState:()=>state,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showSuccession,chooseSuccessor};
+window.LEGACY_TEST={getState:()=>state,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showSuccession,chooseSuccessor,showPersonStats};
 })();
