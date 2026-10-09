@@ -28,6 +28,7 @@ jobs:
           node --check public/living-decisions.js
           node --check public/living-storylines.js
           node --check public/living-impact.js
+          node --check public/attention.js
           node --test tests/*.test.cjs
       - name: Confirm static entry points
         run: |
