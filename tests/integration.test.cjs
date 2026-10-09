@@ -127,5 +127,22 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.equal(state.controlledId,selected);
  assert.equal(state.pendingSuccession,null);
  assert.equal(state.events.at(-1).type,'succession');
+ // Serious health updates interrupt the year-advance flow with a real care decision.
+ const beforeMedicine=sandbox.LEGACY_MEDICINE.annual;
+ const beforeMortality=sandbox.LEGACY_HUMAN.deathRiskModifier;
+ sandbox.LEGACY_HUMAN.deathRiskModifier=()=>0;
+ sandbox.LEGACY_MEDICINE.annual=(person,...args)=>{
+  if(person.id===state.controlledId)return {events:[{type:'health',message:'Diagnosed with pneumonia.'}],cause:null};
+  return beforeMedicine(person,...args);
+ };
+ api.advance(1);
+ assert.equal(state.pendingChoice?.kind,'medical');
+ assert.match(node('#modal-content').innerHTML,/Your health needs attention/);
+ assert.match(node('#modal-content').innerHTML,/emergency treatment/i);
+ api.resolveLifeChoice('primary');
+ assert.equal(state.pendingChoice,null);
+ assert.ok(state.events.some(e=>e.type==='choice'&&e.message.includes('Visit a doctor')));
+ sandbox.LEGACY_MEDICINE.annual=beforeMedicine;
+ sandbox.LEGACY_HUMAN.deathRiskModifier=beforeMortality;
  assert.deepEqual(errors,[],'simulation should not log errors');
 });
