@@ -41,7 +41,7 @@ function createPerson({first,last,sex,birthYear,gen=0,parentIds=[],adoptiveParen
  const p={id:id(),first,last,sex,birthYear,deathYear:null,gen,parentIds:[...parentIds],adoptiveParentIds:[...adoptiveParentIds],inFamily,city,
  partnerId:null,partnerSince:null,formerPartners:[],education:education??(birthYear<=state.year-25?int(1,3):0),jobLevel:jobLevel??(birthYear<=state.year-20?int(1,3):0),wealth:wealth??int(300,6500),
  traits:makeTraits(parentIds),bonds:{},eyeTint:pick(['hazel','brown','brown','blue','green']),hairTint:pick(['brown','black','blond','auburn']),memory:[]};
- state.people[p.id]=p;return p;
+ LEGACY_HUMAN.ensure(p,state.year-birthYear);state.people[p.id]=p;return p;
 }
 function addEvent(year,type,message,personIds=[]){state.events.push({id:state.nextEvent++,year,type,message,personIds:[...new Set(personIds.filter(Boolean))]})}
 function bond(a,b,value){a.bonds[b.id]=Math.max(0,Math.min(100,(a.bonds[b.id]??50)+value));b.bonds[a.id]=Math.max(0,Math.min(100,(b.bonds[a.id]??50)+value))}
@@ -104,8 +104,8 @@ function yearlyEconomy(p){const a=age(p);if(a<18)return;LEGACY_CONSEQUENCES.annu
 }
 function simulateOneYear(){state.year++;
  const start=persons();
- for(const p of start){if(alive(p)&&chance(annualDeathProbability(age(p))))die(p)}
- for(const p of start){if(!alive(p))continue;yearlyEconomy(p);if(age(p)>19&&age(p)<65)maybeRelocate(p);
+ for(const p of start){if(alive(p)&&chance(annualDeathProbability(age(p))*LEGACY_HUMAN.deathRiskModifier(p)))die(p)}
+ for(const p of start){if(!alive(p))continue;const bonds=Object.values(p.bonds||{});const support=bonds.length?bonds.reduce((t,v)=>t+v,0)/bonds.length:50;LEGACY_HUMAN.annual(p,{age:age(p),year:state.year,rnd,financialPressure:Math.min(90,Math.max(0,-p.wealth/700)),support});yearlyEconomy(p);if(age(p)>19&&age(p)<65)maybeRelocate(p);
   if(!p.partnerId&&age(p)>=19&&age(p)<=57&&chance(age(p)<40?.14:.055))meetPartner(p);
  }
  const pairKey=(a,b)=>[a,b].sort().join('|');
@@ -205,7 +205,7 @@ function resolveLifeChoice(action){
  case 'solo':changeMoney(1200);result='Stayed independent and saved $1,200 toward personal goals.';break;
  default:return;
  }
- LEGACY_CONSEQUENCES.apply(p,action,state.year,result);
+ LEGACY_CONSEQUENCES.apply(p,action,state.year,result);LEGACY_HUMAN.effect(p,action);
  p.lastLifeChoiceYear=state.year;
  state.pendingChoice=null;
  addEvent(state.year,'choice',full(p)+' chose: '+option[1]+'. '+result,[p.id,...others]);
@@ -251,7 +251,7 @@ function decide(action){
   rel.sort((a,b)=>a.wealth-b.wealth);const q=rel[0];p.wealth-=1000;q.wealth+=1000;bond(p,q,12);
   addEvent(state.year,'family',`${full(p)} supported ${full(q)} with $1,000.`,[p.id,q.id]);toast(`${q.first} received family support.`);
  }
- LEGACY_CONSEQUENCES.apply(p,action,state.year);
+ LEGACY_CONSEQUENCES.apply(p,action,state.year);LEGACY_HUMAN.effect(p,action);
  saveSoon();render();
 }
 function showToast(msg){toast(msg)}
@@ -302,7 +302,7 @@ function showPersonStats(id,tab='overview',page=0){
  if(!allowed.includes(tab))tab='overview';
  const parents=(p.parentIds||[]).map(get).filter(Boolean);
  const adopters=(p.adoptiveParentIds||[]).map(get).filter(Boolean);
- const children=kids(p),q=partner(p),life=p.lifePath||{};
+ const children=kids(p),q=partner(p),life=p.lifePath||{},needs=LEGACY_HUMAN.snapshot(p,age(p));
  const history=state.events.filter(e=>e.personIds?.includes(p.id)).slice().reverse();
  const rel=related(p).filter(Boolean).map(person=>{
   const parent=parents.some(x=>x.id===person.id)||adopters.some(x=>x.id===person.id);
@@ -333,7 +333,7 @@ function showPersonStats(id,tab='overview',page=0){
    ['Family involvement',life.familyTime||0],['Biological parents',parents.length],['Adoptive parents',adopters.length],['Children',children.length]
   ];
   const traits=[['Curiosity',p.traits?.openness],['Discipline',p.traits?.conscientiousness],['Sociability',p.traits?.extraversion],['Cooperation',p.traits?.agreeableness],['Emotional sensitivity',p.traits?.emotionality]];
-  body=title('Personality · five traits')+'<div class="person-page-traits">'+traits.map(([a,b])=>trait(a,b)).join('')+'</div>'+
+  body=title('Wellbeing & needs')+'<div class="person-page-traits">'+[['Physical health',needs.physical],['Mental wellbeing',needs.mental],['Energy',needs.energy],['Stress',needs.stress],['Resilience',needs.resilience],['Agency',needs.agency]].map(([a,b])=>trait(a,b)).join('')+'</div>'+title('Personality · five traits')+'<div class="person-page-traits">'+traits.map(([a,b])=>trait(a,b)).join('')+'</div>'+
    title('Complete character statistics')+'<div class="person-page-facts">'+facts.map(([a,b])=>metric(a,b)).join('')+'</div>';
  }else if(tab==='family'){
   const size=6,pages=Math.max(1,Math.ceil(rel.length/size));page=Math.max(0,Math.min(page,pages-1));
