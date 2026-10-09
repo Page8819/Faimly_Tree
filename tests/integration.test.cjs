@@ -55,8 +55,8 @@ test('game boots, offers a choice, advances time and hands off the family',async
  const dateAfterFast=state.calendar.date;
  assert.ok(dateAfterFast>'2026-01-01');
 
- assert.match(node('#calendar-date').textContent,/January • 1st • 2026/);
- assert.match(node('#header-day-count').textContent,/DAY 001 \/ 365/);
+ assert.match(node('#calendar-date').textContent,/January • \d+(st|nd|rd|th) • 2026/);
+ assert.equal(node('#header-day-count').textContent,'DAY '+String(accelerated+1).padStart(3,'0')+' / 365');
  api.advanceCalendar('day',1);
  assert.equal(state.calendar.date,sandbox.LEGACY_CALENDAR.shiftDays(dateAfterFast,1));
  assert.equal(state.year,2026,'one day should not run the annual life simulator');
@@ -147,10 +147,11 @@ test('game boots, offers a choice, advances time and hands off the family',async
  await new Promise(resolve=>setTimeout(resolve,560));
  assert.equal(node('#modal-content').innerHTML,'unchanged');
  canvas.handlers.pointerup({pointerId:2,clientX:position.clientX+30,clientY:position.clientY+30});
+ const beforeYearlyDate=state.calendar.date;
  api.advance(1);
  state=api.getState();
  assert.equal(state.year,2027);
- assert.equal(state.calendar.date,'2027-'+state.calendar.date.slice(5),'yearly fast-forward should preserve the calendar month and day');
+ assert.equal(state.calendar.date,sandbox.LEGACY_CALENDAR.shiftYears(beforeYearlyDate,1),'yearly fast-forward should preserve the calendar month and day');
  assert.equal(state.pendingChoice?.kind,'direction');
  assert.match(node('#modal-content').innerHTML,/Where does your ambition lead/);
  api.resolveLifeChoice('stable');
