@@ -779,5 +779,5 @@ function upgradeOldSave(){
 async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}upgradeOldSave();state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
-window.LEGACY_TEST={getState:()=>state,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showSuccession,chooseSuccessor,showPersonStats,getScene:()=>scene,getCamera:()=>({...camera})};
+window.LEGACY_TEST={getState:()=>state,advance,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,getScene:()=>scene,getCamera:()=>({...camera})};
 })();
