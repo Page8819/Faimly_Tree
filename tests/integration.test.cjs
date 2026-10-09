@@ -51,7 +51,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.match(node('#modal-content').innerHTML,/Physical health/);
  assert.match(node('#modal-content').innerHTML,/Emotional sensitivity/);
  api.showPersonStats(state.controlledId,'stats',1);
- assert.match(node('#modal-content').innerHTML,/Career, learning &amp; finances/);
+ assert.match(node('#modal-content').innerHTML,/Career &amp; education/);
  assert.match(node('#modal-content').innerHTML,/Education debt/);
  api.showPersonStats(state.controlledId,'stats',2);
  assert.match(node('#modal-content').innerHTML,/Household economy/);
