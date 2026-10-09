@@ -144,5 +144,23 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.ok(state.events.some(e=>e.type==='choice'&&e.message.includes('Visit a doctor')));
  sandbox.LEGACY_MEDICINE.annual=beforeMedicine;
  sandbox.LEGACY_HUMAN.deathRiskModifier=beforeMortality;
+ // Stress test: grow a dynasty for 60 additional simulation years and resolve popups.
+ const actions={launch:'work',direction:'stable',family:'quality',midlife:'balance',retirement:'continue',relationship:'solo'};
+ for(let y=0;y<60;y++){
+  const pending=state.pendingChoice;
+  if(pending){
+   const choice=pending.kind==='medical'?'primary':pending.kind==='event'?pending.event.options[0][0]:actions[pending.kind]||'stable';
+   api.resolveLifeChoice(choice);
+  }
+  if(state.pendingSuccession){
+   const heir=state.pendingSuccession.candidateIds[0];
+   if(!heir)break;
+   api.chooseSuccessor(heir);
+  }
+  api.advance(1);
+  assert.ok(Object.values(state.people).every(p=>Number.isFinite(p.wealth)),'all person net worth values must stay finite');
+ }
+ assert.ok(state.year>=2029);
+ assert.ok(Object.values(state.people).every(p=>p.medical&&p.schooling&&p.career&&p.finance),'new engines persist across generations');
  assert.deepEqual(errors,[],'simulation should not log errors');
 });
