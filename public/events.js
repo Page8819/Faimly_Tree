@@ -78,7 +78,7 @@
   const [key,t]=selected;
   return {key,...t.build(p,c)};
  }
- function resolve({p,people,year,event,option,rnd}){
+ function resolve({p,people,year,event,option,rnd,cities=[]}){
   if(!event||!templates[event.key]||!Array.isArray(event.options)||!event.options.some(o=>o[0]===option))return null;
   p.lifeEventHistory=p.lifeEventHistory||{};p.lifeEventHistory[event.key]=year;
   const c=context(p,people,year),x=root.LEGACY_CONSEQUENCES.ensure(p);
@@ -100,10 +100,10 @@
    case 'kin:give':if(kin){let amt=Math.min(2500,Math.max(0,p.wealth));change(-amt);kin.wealth+=amt;bond(kin,18);involve(kin);result='Helped '+kin.first+' with '+money(amt)+' and strengthened family trust.';}else result='No relative was available to receive support.';break;
    case 'kin:visit':bond(kin,25);x.familyTime=clamp(x.familyTime+2,0,12);involve(kin);result='Shared time and practical help with '+(kin?.first||'family')+'.';break;
    case 'kin:distance':bond(kin,-8);involve(kin);result='Maintained personal boundaries, but the relationship became more distant.';break;
-   case 'offer:relocate':change(-3000);if(succeed()){p.jobLevel=Math.min(6,p.jobLevel+1);x.momentum+=2;result='Relocated for the new position and advanced a career, spending $3,000 on the move.';}else{result='The move cost $3,000 and the expected promotion did not happen.';}break;
+   case 'offer:relocate':change(-3000);if(cities.length>1){const other=cities.filter(name=>name!==p.city);p.city=other[Math.floor(rnd()*other.length)]||p.city;}if(succeed()){p.jobLevel=Math.min(6,p.jobLevel+1);x.momentum+=2;result='Relocated for the new position and advanced a career, spending $3,000 on the move.';}else{result='The move cost $3,000 and the expected promotion did not happen.';}break;
    case 'offer:negotiate':if(succeed()){change(3500);x.momentum++;result='Won a $3,500 compensation improvement without moving.';}else result='Negotiations failed, but the existing job was preserved.';break;
    case 'offer:decline':x.discipline=clamp(x.discipline+1,0,12);result='Declined the offer and maintained stability.';break;
-   case 'reconcile:repair':bond(estranged,succeed()?28:8);involve(estranged);result=succeed()?'Rebuilt trust with '+(estranged?.first||'a relative')+'.':'Made an imperfect but meaningful attempt to reconnect.';break;
+   case 'reconcile:repair':{const success=succeed();bond(estranged,success?28:8);involve(estranged);result=success?'Rebuilt trust with '+(estranged?.first||'a relative')+'.':'Made an imperfect but meaningful attempt to reconnect.';}break;
    case 'reconcile:limited':bond(estranged,12);involve(estranged);result='Maintained cautious contact, slowly building trust.';break;
    case 'reconcile:avoid':bond(estranged,-8);involve(estranged);result='Chose not to reopen the relationship.';break;
    case 'enterprise:pilot':change(-3000);if(succeed()){x.enterprise=1;x.calling='Entrepreneur';result='The $3,000 pilot attracted customers; a small venture now has recurring earning potential.';}else result='The $3,000 pilot did not find sufficient demand.';break;
