@@ -41,7 +41,7 @@ function createPerson({first,last,sex,birthYear,gen=0,parentIds=[],adoptiveParen
  const p={id:id(),first,last,sex,birthYear,deathYear:null,gen,parentIds:[...parentIds],adoptiveParentIds:[...adoptiveParentIds],inFamily,city,
  partnerId:null,partnerSince:null,formerPartners:[],education:education??(birthYear<=state.year-25?int(1,3):0),jobLevel:jobLevel??(birthYear<=state.year-20?int(1,3):0),wealth:wealth??int(300,6500),
  traits:makeTraits(parentIds),bonds:{},eyeTint:pick(['hazel','brown','brown','blue','green']),hairTint:pick(['brown','black','blond','auburn']),memory:[]};
- LEGACY_HUMAN.ensure(p,state.year-birthYear);LEGACY_ECONOMY.ensure(p);state.people[p.id]=p;return p;
+ LEGACY_HUMAN.ensure(p,state.year-birthYear);LEGACY_ECONOMY.ensure(p);LEGACY_MEDICINE.ensure(p);state.people[p.id]=p;return p;
 }
 function addEvent(year,type,message,personIds=[]){state.events.push({id:state.nextEvent++,year,type,message,personIds:[...new Set(personIds.filter(Boolean))]})}
 function bond(a,b,value){LEGACY_RELATIONSHIPS.affect(a,b,value,state.year,'family interaction')}
@@ -85,9 +85,9 @@ function newWorld(name='Alex Morgan',sex='male',startYear=2026){
  currentTab='tree';scope='focus';needsFit=true;return state;
 }
 function annualDeathProbability(a){if(a<1)return .004;if(a<15)return .0002;if(a<30)return .0007;if(a<40)return .0013;if(a<50)return .0027;if(a<60)return .006;if(a<70)return .014;if(a<80)return .037;if(a<90)return .09;return Math.min(.5,.17+(a-90)*.012)}
-function die(p){p.deathYear=state.year;const q=partner(p);if(q){p.partnerId=null;q.partnerId=null;p.partnerSince=null;q.partnerSince=null;if(!p.formerPartners.includes(q.id))p.formerPartners.push(q.id);if(!q.formerPartners.includes(p.id))q.formerPartners.push(p.id)}
+function die(p,cause='Natural causes'){p.deathYear=state.year;p.causeOfDeath=cause;const q=partner(p);if(q){p.partnerId=null;q.partnerId=null;p.partnerSince=null;q.partnerSince=null;if(!p.formerPartners.includes(q.id))p.formerPartners.push(q.id);if(!q.formerPartners.includes(p.id))q.formerPartners.push(p.id)}
  const heirs=[...(q&&alive(q)?[q]:[]),...kids(p).filter(alive)];if(p.wealth>1000&&heirs.length){let amount=p.wealth*.85/heirs.length;for(let h of heirs)h.wealth+=amount;p.wealth*=.15;addEvent(state.year,'inheritance',`${full(p)}'s estate passed to ${heirs.length} surviving family member${heirs.length>1?'s':''}.`,[p.id,...heirs.map(x=>x.id)])}
- addEvent(state.year,'death',`${full(p)} died at age ${age(p)}.`,[p.id]);
+ addEvent(state.year,'death',`${full(p)} died at age ${age(p)}. Cause: ${cause}.`,[p.id]);
 }
 function meetPartner(p){if(p.partnerId||!alive(p)||age(p)<18||state.nextId>MAX_PEOPLE)return null;
  const a=age(p),sex=chance(.86)?(p.sex==='female'?'male':'female'):p.sex,offset=int(-5,5),bYear=state.year-Math.max(18,Math.min(79,a+offset));
@@ -111,7 +111,18 @@ function yearlyEconomy(p){
 }
 function simulateOneYear(){state.year++;
  const start=persons();
- for(const p of start){if(alive(p)&&chance(annualDeathProbability(age(p))*LEGACY_HUMAN.deathRiskModifier(p)))die(p)}
+ for(const p of start){
+  if(!alive(p))continue;
+  const parents=[...(p.parentIds||[]),...(p.adoptiveParentIds||[])].map(get).filter(Boolean);
+  const result=LEGACY_MEDICINE.annual(p,age(p),state.year,rnd,parents);
+  for(const event of result.events)addEvent(state.year,'health',full(p)+': '+event.message,[p.id]);
+  if(result.cause){die(p,result.cause);continue;}
+  if(chance(annualDeathProbability(age(p))*LEGACY_HUMAN.deathRiskModifier(p))){
+   const a=age(p);
+   const cause=a<1?'Complications of infancy':a<35?pick(['Accidental injury','Severe infection']):a<65?pick(['Cardiovascular event','Accidental injury','Undiagnosed illness']):pick(['Cardiovascular event','Pneumonia','Age-related frailty']);
+   die(p,cause);
+  }
+ }
  for(const p of start){if(!alive(p))continue;const bonds=Object.values(p.bonds||{});const support=bonds.length?bonds.reduce((t,v)=>t+v,0)/bonds.length:50;LEGACY_HUMAN.annual(p,{age:age(p),year:state.year,rnd,financialPressure:Math.min(90,Math.max(0,-p.wealth/700)),support});yearlyEconomy(p);if(age(p)>19&&age(p)<65)maybeRelocate(p);
   if(!p.partnerId&&age(p)>=19&&age(p)<=57&&chance(age(p)<40?.14:.055))meetPartner(p);
  }
@@ -314,7 +325,7 @@ function showPersonStats(id,tab='overview',page=0){
  if(state.pendingChoice||state.pendingSuccession)return;
  const p=get(id);if(!p)return;
  selectPerson(id);
- const allowed=['overview','stats','family','actions','history'];
+ const allowed=['overview','health','stats','family','actions','history'];
  if(!allowed.includes(tab))tab='overview';
  const parents=(p.parentIds||[]).map(get).filter(Boolean);
  const adopters=(p.adoptiveParentIds||[]).map(get).filter(Boolean);
@@ -341,6 +352,25 @@ function showPersonStats(id,tab='overview',page=0){
   '<div class="person-page-metrics">'+overview.map(([a,b])=>metric(a,b)).join('')+'</div>'+
   title('Life path & legacy')+'<p class="person-page-description">'+esc(LEGACY_CONSEQUENCES.describe(p))+'</p>'+
   title('Family overview')+'<div class="person-page-summary">'+parents.length+' biological parent'+(parents.length===1?'':'s')+' · '+adopters.length+' adoptive parent'+(adopters.length===1?'':'s')+' · '+children.length+' child'+(children.length===1?'':'ren')+' · '+(q?'Partnered':'No current partner')+'</div>';
+ }else if(tab==='health'){
+  const info=LEGACY_MEDICINE.current(p),cases=info.active,log=info.history;
+  const size=3,which=Math.max(0,Math.min(page,Math.ceil((cases.length+1)/size)));
+  if(which===0){
+   const cards=[
+    ['Physical wellbeing',needs.physical+' / 100'],['Mental wellbeing',needs.mental+' / 100'],
+    ['Active conditions',String(cases.length)],['Medical insurance',info.insurance]
+   ];
+   const services=Object.entries(LEGACY_MEDICINE.services).map(([key,v])=>'<button class="person-health-care" data-medical-care="'+key+'" '+(!alive(p)||state.mode==='individual'&&state.controlledId!==p.id?'disabled':'')+'><strong>'+esc(v.label)+'</strong><small>'+money(v.cost)+' before coverage</small></button>').join('');
+   body=title('Health record')+'<div class="person-page-metrics">'+cards.map(([a,b])=>metric(a,b)).join('')+'</div>'+
+    '<p class="person-page-description">'+(p.causeOfDeath?'Recorded cause of death: '+esc(p.causeOfDeath):'Health conditions develop over time. Care may help, but results are uncertain.')+'</p>'+
+    title('Medical services')+'<div class="person-medical-services">'+services+'</div>';
+  }else{
+   const offset=(which-1)*size;
+   body=title('Ailments & medical history')+
+    '<div class="person-page-history">'+(cases.length?cases.slice(offset,offset+size).map(c=>'<div class="person-page-event"><b>'+c.since+'</b><span>'+esc(c.diagnosed?c.name:'Undiagnosed symptoms')+' · '+esc(c.diagnosed?'Stage '+c.stage:'Not yet diagnosed')+'</span></div>').join(''):'<p class="person-page-empty">No active ailments recorded.</p>')+'</div>'+
+    title('Recent care')+'<p class="person-page-description">'+esc(log.at(-1)?.message||'No previous medical visits.')+'</p>';
+  }
+  body+=pageControls('health',which,Math.max(1,Math.ceil(cases.length/3)+1));
  }else if(tab==='stats'){
   const facts=[
    ['Birth year',p.birthYear],['Death year',p.deathYear||'—'],['Generation',p.gen+1],['Annual income',age(p)>=18&&!p.retired?money(incomeFor(p)):'—'],
@@ -376,7 +406,7 @@ function showPersonStats(id,tab='overview',page=0){
  function pageControls(which,current,total){
   return total>1?'<div class="person-page-pagination"><button data-page="-1" '+(current===0?'disabled':'')+' aria-label="Previous '+which+' page">← Prev</button><span>Page '+(current+1)+' of '+total+'</span><button data-page="1" '+(current===total-1?'disabled':'')+' aria-label="Next '+which+' page">Next →</button></div>':'';
  }
- const tabs=[['overview','Overview'],['stats','Stats'],['family','Family'],['actions','Actions'],['history','History']];
+ const tabs=[['overview','Overview'],['health','Health'],['stats','Stats'],['family','Family'],['actions','Actions'],['history','History']];
  const tabNav=tabs.map(([key,name])=>'<button role="tab" data-person-tab="'+key+'" aria-selected="'+(tab===key)+'" class="'+(tab===key?'active':'')+'">'+name+'</button>').join('');
  showModal('<div class="person-sheet person-sheet-compact"><div class="person-sheet-top"><div><div class="eyebrow">FAMILY RECORD · '+esc(p.id.toUpperCase())+' · '+esc(yearSpan(p))+'</div><div class="person-sheet-topname">'+esc(full(p))+'</div></div><button id="person-sheet-close" class="person-sheet-close" type="button" aria-label="Close person details">✕</button></div><nav class="person-sheet-tabs" role="tablist" aria-label="Character details">'+tabNav+'</nav><div class="person-sheet-screen" role="tabpanel" aria-label="'+esc(tab)+'">'+body+'</div></div>');
  $('#modal-backdrop').classList.add('person-profile-backdrop');
@@ -386,6 +416,12 @@ function showPersonStats(id,tab='overview',page=0){
  $$('[data-person]').forEach(b=>b.onclick=()=>showPersonStats(b.dataset.person));
  $$('[data-page]').forEach(b=>b.onclick=()=>showPersonStats(id,tab,page+Number(b.dataset.page)));
  $$('[data-action]').forEach(b=>b.onclick=()=>{decide(b.dataset.action);if(!state.pendingChoice&&!state.pendingSuccession)showPersonStats(id,'actions');});
+ $$('[data-medical-care]').forEach(b=>b.onclick=()=>{
+  if(state.mode==='individual'&&id!==state.controlledId){toast('Take control before choosing medical care.');return;}
+  const result=LEGACY_MEDICINE.care(p,b.dataset.medicalCare,state.year,rnd);
+  if(result.ok){addEvent(state.year,'health',full(p)+': '+result.message,[p.id]);saveSoon();render();showPersonStats(id,'health');}
+  toast(result.message);
+ });
  const take=$('#sheet-take-control');
  if(take)take.onclick=()=>{state.controlledId=p.id;saveSoon();showPersonStats(p.id,'actions');toast('You are now living as '+p.first+'.');};
 }
