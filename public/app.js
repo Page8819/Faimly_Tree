@@ -118,7 +118,7 @@ function yearlyEconomy(p){
  for(const message of LEGACY_CAREERS.annual(p,a,state.year,rnd,npc))addEvent(state.year,'career',full(p)+' '+message,[p.id]);
  const dependentChildren=kids(p).filter(c=>alive(c)&&age(c)<18).length;
  const q=partner(p);
- return LEGACY_ECONOMY.annual(p,{age:a,year:state.year,income:incomeFor(p),city:p.city,dependents:dependentChildren,hasPartner:!!(q&&alive(q)),rnd});
+ return LEGACY_ECONOMY.annual(p,{age:a,year:state.year,income:p.retired?LEGACY_CAREERS.income(p,{includeRetired:true}):incomeFor(p),city:p.city,dependents:dependentChildren,hasPartner:!!(q&&alive(q)),rnd});
 }
 function simulateOneYear(){state.year++;
  const start=persons();
