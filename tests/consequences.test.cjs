@@ -4,15 +4,14 @@ const assert=require('node:assert/strict');
 require('../public/consequences.js');
 const C=globalThis.LEGACY_CONSEQUENCES;
 const person=()=>({wealth:5000,education:0,lifePath:null,jobLevel:1});
-test('education choice persists as debt and skill gains',()=>{
- const p=person();C.apply(p,'college',2044,'Completed advanced education');
- assert.equal(p.lifePath.calling,'Academic');
- assert.equal(p.lifePath.educationDebt,14000);
- assert.equal(p.lifePath.skills,2);
+test('enrollment milestones preserve decisions without duplicating education fees or qualifications',()=>{
+ const p=person();C.apply(p,'college',2044,'Enrolled in bachelor program');
+ assert.equal(p.lifePath.calling,'Academic student');
+ assert.equal(p.lifePath.educationDebt,0);
+ assert.equal(p.lifePath.skills,0);
  assert.equal(p.lifePath.decisions[0].year,2044);
- const prior=p.wealth;C.annual(p,25,2051);
- assert.ok(p.lifePath.educationDebt<14000);
- assert.ok(p.wealth!==prior);
+ C.annual(p,25,2051);
+ assert.equal(p.lifePath.educationDebt,0);
 });
 test('successful business changes future annual finances',()=>{
  const p=person();C.apply(p,'business',2045,'Venture succeeded');
