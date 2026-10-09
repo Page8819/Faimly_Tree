@@ -139,6 +139,8 @@
   if(!Number.isFinite(c.minutes)||c.minutes<0||c.minutes>=1440)c.minutes=9*60;
   if(!Number.isFinite(c.daysElapsed)||c.daysElapsed<0)c.daysElapsed=0;
   if(!Array.isArray(c.dailyJournal))c.dailyJournal=[];
+  if(!c.zone||!Object.values(LOCATIONS).some(x=>x[0]===c.zone))c.zone=cityInfo(state.people?.[state.controlledId]?.city||'New York').zone;
+  if(!Number.isFinite(c.instant))c.instant=instantFor(c.date,c.minutes,c.zone);
   return c;
  }
  function dateLabel(date){const p=parse(date);if(!p)return '';
@@ -147,18 +149,18 @@
   return month+' • '+p.day+suffix+' • '+p.year;
  }
  function weekdayLabel(date){const p=parse(date);return p?new Intl.DateTimeFormat('en-US',{weekday:'long',timeZone:'UTC'}).format(new Date(utc(p.year,p.month,p.day))):'';}
- function masterZone(state){return cityInfo(state.people?.[state.controlledId]?.city||'New York').zone;}
- function clock(state){const c=ensure(state);return localParts(instantFor(c.date,c.minutes,masterZone(state)),masterZone(state));}
+ function masterZone(state){return ensure(state).zone;}
+ function clock(state){const c=ensure(state);return localParts(c.instant,c.zone);}
  function updateFromInstant(state,ms){
   const c=ensure(state),before=c.date,after=localParts(ms,masterZone(state));
-  c.date=after.date;c.minutes=after.minutes;
+  c.date=after.date;c.minutes=after.minutes;c.instant=ms;
   c.daysElapsed+=Math.round((utc(after.year,after.month,after.day)-utc(+before.slice(0,4),+before.slice(5,7),+before.slice(8,10)))/DAY);
   return {from:before,to:c.date,clock:after};
  }
  function atPerson(state,p){
   const c=ensure(state);
   const place=cityInfo(p?.city||'New York');
-  const when=instantFor(c.date,c.minutes,masterZone(state));
+  const when=c.instant;
   return {...localParts(when,place.zone),...place};
  }
  const schedules={
@@ -188,6 +190,11 @@
   return {...here,sector,holiday:holidayName,working,scheduled:true,reason:working?'On shift':here.minutes<pattern.start?'Shift later today':'Shift finished',
    hours:(pattern.end-pattern.start)/60,start:pattern.start,end:pattern.end};
  }
+ function reanchor(state){
+  const c=ensure(state);
+  c.instant=instantFor(c.date,c.minutes,c.zone);
+  return c.instant;
+ }
  function dayReport(state,jobCatalog){
   const c=ensure(state),person=state.people?.[state.controlledId];if(!person)return null;
   const status=schedule(person,state,jobCatalog);
@@ -195,6 +202,6 @@
   c.dailyJournal.push(entry);if(c.dailyJournal.length>70)c.dailyJournal.splice(0,c.dailyJournal.length-70);
   return entry;
  }
- root.LEGACY_CALENDAR={LOCATIONS,leap,daysInMonth,dayOfYear,weekday,shiftDays,shiftMonths,shiftYears,parse,dateLabel,weekdayLabel,
+ root.LEGACY_CALENDAR={LOCATIONS,reanchor,leap,daysInMonth,dayOfYear,weekday,shiftDays,shiftMonths,shiftYears,parse,dateLabel,weekdayLabel,
   easter,holiday,holidaysFor,cityInfo,localParts,instantFor,ensure,clock,masterZone,atPerson,schedule,dayReport,updateFromInstant};
 })(typeof window==='undefined'?globalThis:window);
