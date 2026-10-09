@@ -231,8 +231,8 @@ function resolveLifeChoice(action){
    result=visit.message;
   }
  }else if(pending.kind==='living'){
-  const story=LEGACY_LIVING_CONTEXT.resolve({p,event:pending.event,option:action,people:state.people,year:state.year,rnd});
-  if(!story)return;
+  const story=LEGACY_LIVING_DECISIONS.commit({state,p,event:pending.event,action,year:state.year,rnd});
+  if(!story.ok){toast(story.result);showLifeChoice();return;}
   result=story.result;others=story.others||[];
  }else if(pending.kind==='event'){
   const story=LEGACY_EVENTS.resolve({p,people:state.people,year:state.year,event:pending.event,option:action,rnd,cities});
@@ -699,9 +699,11 @@ function bind(){
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveGame()});
 }
 function upgradeOldSave(){
+ LEGACY_LIVING_DECISIONS.ensure(state);
  for(const p of persons()){
   LEGACY_HUMAN.ensure(p,age(p));LEGACY_ECONOMY.ensure(p);LEGACY_MEDICINE.ensure(p);
   LEGACY_EDUCATION.ensure(p);LEGACY_CAREERS.ensure(p);LEGACY_LIVING_PSYCHOLOGY.ensure(p);
+  if(!Array.isArray(p.commitments))p.commitments=[];
  }
 }
 async function init(){state=await loadGame();if(!state){newWorld();await saveGame()}upgradeOldSave();state.controlledId=state.controlledId||state.founderId||state.selectedId;bind();render();if(state.pendingSuccession)showSuccession();else if(state.pendingChoice)showLifeChoice();if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}
