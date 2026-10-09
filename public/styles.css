@@ -258,3 +258,11 @@
 /* Eight compact financial and lifestyle decisions on a fixed no-scroll page */
 .person-page-actions{grid-template-rows:repeat(4,minmax(43px,1fr))}
 @media(max-height:520px){.person-page-actions{grid-template-rows:repeat(4,minmax(29px,1fr));gap:3px}.person-page-action{font-size:10px;min-height:28px}}
+
+/* Medical care view: all service buttons fit without an internal scrollbar. */
+.person-medical-services{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(3,minmax(42px,1fr));gap:7px;flex:1;min-height:0}
+.person-health-care{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;border:1px solid #49645e;background:#1d3b37;color:#f1f4e9;border-radius:9px;text-align:left;padding:7px 10px;min-width:0}
+.person-health-care strong{font-size:11px;line-height:1.15}
+.person-health-care small{font-size:9px;color:#e2c38b}
+@media(max-width:680px){.person-sheet-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}.person-sheet-tabs button{min-height:33px;padding:5px 0}}
+@media(max-height:520px){.person-medical-services{grid-template-rows:repeat(3,minmax(30px,1fr));gap:3px}.person-health-care{padding:3px 6px}.person-health-care strong{font-size:9px}.person-health-care small{font-size:8px}.person-page-metrics .person-page-metric{min-height:35px}}
