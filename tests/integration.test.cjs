@@ -33,6 +33,22 @@ test('game boots, offers a choice, advances time and hands off the family',async
  const api=sandbox.LEGACY_TEST;
  assert.ok(api,'integration hooks installed');
  let state=api.getState();assert.equal(state.year,2026);
+ assert.equal(state.calendar.date,'2026-01-01');
+ assert.match(node('#calendar-date').textContent,/January • 1st • 2026/);
+ assert.match(node('#header-day-count').textContent,/DAY 001 \/ 365/);
+ api.advanceCalendar('day',1);
+ assert.equal(state.calendar.date,'2026-01-02');
+ assert.equal(state.year,2026,'one day should not run the annual life simulator');
+ api.advanceCalendar('month',1);
+ assert.equal(state.calendar.date,'2026-02-02');
+ api.advanceCalendar('hour',1);
+ assert.equal(state.calendar.minutes,600);
+ assert.equal(state.year,2026);
+ api.showCalendarDetails();
+ assert.match(node('#modal-content').innerHTML,/Upcoming public holidays/);
+ assert.match(node('#modal-content').innerHTML,/Family time zones/);
+ node('#calendar-close').onclick();
+
  assert.equal(Object.keys(state.people).length,4);
  assert.equal(sandbox.LEGACY_ATTENTION.unread(state).length,0,'founding historical events should not trigger alerts');
  assert.ok(state.people[state.controlledId].needs?.physical>0);
@@ -113,6 +129,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  api.advance(1);
  state=api.getState();
  assert.equal(state.year,2027);
+ assert.equal(state.calendar.date,'2027-02-02','yearly fast-forward should preserve the calendar month and day');
  assert.equal(state.pendingChoice?.kind,'direction');
  assert.match(node('#modal-content').innerHTML,/Where does your ambition lead/);
  api.resolveLifeChoice('stable');
