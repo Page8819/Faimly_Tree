@@ -41,7 +41,7 @@ function createPerson({first,last,sex,birthYear,gen=0,parentIds=[],adoptiveParen
  const p={id:id(),first,last,sex,birthYear,deathYear:null,gen,parentIds:[...parentIds],adoptiveParentIds:[...adoptiveParentIds],inFamily,city,
  partnerId:null,partnerSince:null,formerPartners:[],education:education??(birthYear<=state.year-25?int(1,3):0),jobLevel:jobLevel??(birthYear<=state.year-20?int(1,3):0),wealth:wealth??int(300,6500),
  traits:makeTraits(parentIds),bonds:{},eyeTint:pick(['hazel','brown','brown','blue','green']),hairTint:pick(['brown','black','blond','auburn']),memory:[]};
- LEGACY_HUMAN.ensure(p,state.year-birthYear);LEGACY_ECONOMY.ensure(p);LEGACY_MEDICINE.ensure(p);LEGACY_EDUCATION.ensure(p);state.people[p.id]=p;return p;
+ LEGACY_HUMAN.ensure(p,state.year-birthYear);LEGACY_ECONOMY.ensure(p);LEGACY_MEDICINE.ensure(p);LEGACY_EDUCATION.ensure(p);LEGACY_CAREERS.ensure(p);state.people[p.id]=p;return p;
 }
 function addEvent(year,type,message,personIds=[]){state.events.push({id:state.nextEvent++,year,type,message,personIds:[...new Set(personIds.filter(Boolean))]})}
 function bond(a,b,value){LEGACY_RELATIONSHIPS.affect(a,b,value,state.year,'family interaction')}
@@ -95,14 +95,21 @@ function meetPartner(p){if(p.partnerId||!alive(p)||age(p)<18||state.nextId>MAX_P
  linkCouple(p,other);return other;
 }
 function maybeRelocate(p){if(chance(.012)){const from=p.city;let next=pick(cities);if(next!==from){p.city=next;addEvent(state.year,'move',`${full(p)} moved from ${from} to ${next}.`,[p.id]);const q=partner(p);if(q&&chance(.75))q.city=next;}}}
-function incomeFor(p){const base=[0,25000,41000,61000,92000,135000,185000];return base[Math.max(0,Math.min(p.jobLevel,6))]*(.85+p.education*.07)}
+function incomeFor(p){return LEGACY_CAREERS.income(p)}
 function yearlyEconomy(p){
  const a=age(p);if(a<18)return;
  LEGACY_CONSEQUENCES.annual(p,a,state.year);
  for(const message of LEGACY_EDUCATION.annual(p,a,state.year,rnd))addEvent(state.year,'education',full(p)+' '+message,[p.id]);
- if(!p.retired&&a<67&&chance(LEGACY_CONSEQUENCES.careerOdds(p)*LEGACY_HUMAN.careerModifier(p))&&p.jobLevel<6){
-  p.jobLevel++;addEvent(state.year,'career',full(p)+' advanced their career.',[p.id]);
+ const npc=p.id!==state.controlledId;
+ if(npc&&a>=18&&a<=38&&!p.schooling?.current&&chance(.065)){
+  const programs=['ged','trade','cdl','culinary','it','emt','associate','bachelor','nursing','engineer','master','law','medicine'];
+  const eligible=programs.filter(k=>LEGACY_EDUCATION.canEnroll(p,k,a).ok);
+  if(eligible.length){
+   const result=LEGACY_EDUCATION.enroll(p,pick(eligible),a,state.year);
+   if(result.ok)addEvent(state.year,'education',full(p)+' '+result.message,[p.id]);
+  }
  }
+ for(const message of LEGACY_CAREERS.annual(p,a,state.year,rnd,npc))addEvent(state.year,'career',full(p)+' '+message,[p.id]);
  const dependentChildren=kids(p).filter(c=>alive(c)&&age(c)<18).length;
  const q=partner(p);
  return LEGACY_ECONOMY.annual(p,{age:a,year:state.year,income:incomeFor(p),city:p.city,dependents:dependentChildren,hasPartner:!!(q&&alive(q)),rnd});
@@ -323,11 +330,11 @@ function showPersonStats(id,tab='overview',page=0){
  if(state.pendingChoice||state.pendingSuccession)return;
  const p=get(id);if(!p)return;
  selectPerson(id);
- const allowed=['overview','health','education','stats','family','actions','history'];
+ const allowed=['overview','health','education','career','stats','family','actions','history'];
  if(!allowed.includes(tab))tab='overview';
  const parents=(p.parentIds||[]).map(get).filter(Boolean);
  const adopters=(p.adoptiveParentIds||[]).map(get).filter(Boolean);
- const children=kids(p),q=partner(p),life=p.lifePath||{},needs=LEGACY_HUMAN.snapshot(p,age(p)),finance=LEGACY_ECONOMY.statement(p);
+ const children=kids(p),q=partner(p),life=p.lifePath||{},needs=LEGACY_HUMAN.snapshot(p,age(p)),finance=LEGACY_ECONOMY.statement(p),career=LEGACY_CAREERS.details(p,age(p));
  const history=state.events.filter(e=>e.personIds?.includes(p.id)).slice().reverse();
  const rel=related(p).filter(Boolean).map(person=>{
   const parent=parents.some(x=>x.id===person.id)||adopters.some(x=>x.id===person.id);
@@ -335,7 +342,7 @@ function showPersonStats(id,tab='overview',page=0){
   const pParents=new Set([...(p.parentIds||[]),...(p.adoptiveParentIds||[])]);const sharedParents=[...(person.parentIds||[]),...(person.adoptiveParentIds||[])].filter(parentId=>pParents.has(parentId));const type=parent?'Parent':child?'Child':sharedParents.length?'Sibling':q?.id===person.id?'Partner':p.formerPartners?.includes(person.id)?'Former partner':'Family';
   return {person,type,strength:Math.round(p.bonds?.[person.id]??50),social:LEGACY_RELATIONSHIPS.relation(p,person)};
  });
- const occupation=age(p)<18?'Growing up':p.retired?'Retired':jobs[Math.min(p.jobLevel??0,5)]||'Unemployed';
+ const occupation=age(p)<16?'Growing up':p.retired?'Retired':career.current?.name||'Seeking work';
  const education=['Early learning','Secondary','Vocational / college','Higher education','Advanced education'][Math.min(p.education??0,4)]||'Education';
  const metric=(label,value)=>'<div class="person-page-metric"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong></div>';
  const title=t=>'<h3 class="person-page-title">'+esc(t)+'</h3>';
@@ -378,6 +385,15 @@ function showPersonStats(id,tab='overview',page=0){
   title('Current studies')+'<div class="person-page-summary">'+esc(header)+'</div>'+
   title('Choose an education pathway')+'<div class="person-path-cards">'+available.slice(page*perPage,(page+1)*perPage).map(prog=>
     '<button class="person-path-card" data-education-id="'+prog.id+'" '+(!alive(p)||state.mode==='individual'&&state.controlledId!==p.id||!prog.eligibility.ok?'disabled':'')+'><span><strong>'+esc(prog.name)+'</strong><small>'+esc(prog.category)+' · '+prog.years+'yr · '+money(prog.cost)+'</small></span><small>'+esc(prog.eligibility.ok?'Enroll →':prog.eligibility.reason)+'</small></button>').join('')+'</div>'+pageControls('education',page,pages);
+ }else if(tab==='career'){
+  const list=career.opportunities,perPage=4,pages=Math.max(1,Math.ceil(list.length/perPage));page=Math.max(0,Math.min(page,pages-1));
+  body=title('Current occupation')+'<div class="person-page-metrics">'+[
+   ['Position',career.current?.name||'Unemployed'],['Estimated yearly income',money(career.salary)],
+   ['Experience',career.experience+' years'],['Career grade',career.grade+' / 5']
+  ].map(([a,b])=>metric(a,b)).join('')+'</div>'+
+   '<p class="person-page-description">Tenure: '+career.tenure+' years · Work performance: '+career.performance+'/100. Education and experience control eligibility.</p>'+
+   title('Explore real occupations')+'<div class="person-path-cards">'+list.slice(page*perPage,(page+1)*perPage).map(j=>
+    '<button class="person-path-card" data-career-id="'+j.id+'" '+(!alive(p)||state.mode==='individual'&&state.controlledId!==p.id||!j.eligibility.ok?'disabled':'')+'><span><strong>'+esc(j.name)+'</strong><small>'+esc(j.sector)+' · '+money(j.salary)+'/yr</small></span><small>'+esc(j.eligibility.ok?'Apply →':j.eligibility.reason)+'</small></button>').join('')+'</div>'+pageControls('career',page,pages);
  }else if(tab==='stats'){
   const facts=[
    ['Birth year',p.birthYear],['Death year',p.deathYear||'—'],['Generation',p.gen+1],['Annual income',age(p)>=18&&!p.retired?money(incomeFor(p)):'—'],
@@ -413,7 +429,7 @@ function showPersonStats(id,tab='overview',page=0){
  function pageControls(which,current,total){
   return total>1?'<div class="person-page-pagination"><button data-page="-1" '+(current===0?'disabled':'')+' aria-label="Previous '+which+' page">← Prev</button><span>Page '+(current+1)+' of '+total+'</span><button data-page="1" '+(current===total-1?'disabled':'')+' aria-label="Next '+which+' page">Next →</button></div>':'';
  }
- const tabs=[['overview','Overview'],['health','Health'],['education','School'],['stats','Stats'],['family','Family'],['actions','Actions'],['history','History']];
+ const tabs=[['overview','Overview'],['health','Health'],['education','School'],['career','Jobs'],['stats','Stats'],['family','Family'],['actions','Actions'],['history','History']];
  const tabNav=tabs.map(([key,name])=>'<button role="tab" data-person-tab="'+key+'" aria-selected="'+(tab===key)+'" class="'+(tab===key?'active':'')+'">'+name+'</button>').join('');
  showModal('<div class="person-sheet person-sheet-compact"><div class="person-sheet-top"><div><div class="eyebrow">FAMILY RECORD · '+esc(p.id.toUpperCase())+' · '+esc(yearSpan(p))+'</div><div class="person-sheet-topname">'+esc(full(p))+'</div></div><button id="person-sheet-close" class="person-sheet-close" type="button" aria-label="Close person details">✕</button></div><nav class="person-sheet-tabs" role="tablist" aria-label="Character details">'+tabNav+'</nav><div class="person-sheet-screen" role="tabpanel" aria-label="'+esc(tab)+'">'+body+'</div></div>');
  $('#modal-backdrop').classList.add('person-profile-backdrop');
@@ -422,12 +438,18 @@ function showPersonStats(id,tab='overview',page=0){
  $$('[data-person-tab]').forEach(b=>b.onclick=()=>showPersonStats(id,b.dataset.personTab));
  $$('[data-person]').forEach(b=>b.onclick=()=>showPersonStats(b.dataset.person));
  $$('[data-page]').forEach(b=>b.onclick=()=>showPersonStats(id,tab,page+Number(b.dataset.page)));
- $$('[data-action]').forEach(b=>b.onclick=()=>{decide(b.dataset.action);if(!state.pendingChoice&&!state.pendingSuccession)showPersonStats(id,'actions');});
+ $$('[data-action]').forEach(b=>b.onclick=()=>{if(b.dataset.action==='career')return showPersonStats(id,'career');if(b.dataset.action==='educate')return showPersonStats(id,'education');decide(b.dataset.action);if(!state.pendingChoice&&!state.pendingSuccession)showPersonStats(id,'actions');});
  $$('[data-education-id]').forEach(b=>b.onclick=()=>{
   if(state.mode==='individual'&&id!==state.controlledId){toast('Take control to enroll in education.');return;}
   const r=LEGACY_EDUCATION.enroll(p,b.dataset.educationId,age(p),state.year);
   if(r.ok){addEvent(state.year,'education',full(p)+': '+r.message,[p.id]);saveSoon();render();showPersonStats(id,'education',page);}
   toast(r.message);
+ });
+ $$('[data-career-id]').forEach(b=>b.onclick=()=>{
+  if(state.mode==='individual'&&id!==state.controlledId){toast('Take control to apply for a career.');return;}
+  const result=LEGACY_CAREERS.apply(p,b.dataset.careerId,age(p),state.year,rnd);
+  if(result.ok){addEvent(state.year,'career',full(p)+': '+result.message,[p.id]);saveSoon();render();}
+  toast(result.message);showPersonStats(id,'career',page);
  });
  $$('[data-medical-care]').forEach(b=>b.onclick=()=>{
   if(state.mode==='individual'&&id!==state.controlledId){toast('Take control before choosing medical care.');return;}
