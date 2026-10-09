@@ -353,6 +353,59 @@ function decide(action){
  LEGACY_CONSEQUENCES.apply(p,action,state.year);LEGACY_HUMAN.effect(p,action);
  saveSoon();render();
 }
+
+function renderAttention(){
+ if(!state)return;
+ const notices=LEGACY_ATTENTION.unread(state);
+ const banner=$('#attention-banner'),inbox=$('#attention-inbox');
+ banner.classList.toggle('hidden',!notices.length);
+ inbox.classList.toggle('hidden',!notices.length);
+ if(!notices.length)return;
+ const top=notices[0],p=get(top.personId);
+ if(!p)return;
+ $('#attention-label').textContent=top.label.toUpperCase()+' · '+top.year;
+ $('#attention-name').textContent=alive(p)?'Check on '+p.first:'See what happened to '+p.first;
+ $('#attention-message').textContent=top.message;
+ $('#attention-count').textContent=String(notices.length);
+ inbox.setAttribute('aria-label',notices.length+' important family update'+(notices.length===1?'':'s')+'. Open attention inbox.');
+ $('#attention-go').onclick=()=>reviewAttentionPerson(top.personId);
+ $('#attention-dismiss').onclick=()=>{
+  if(LEGACY_ATTENTION.dismiss(state,top.id)){
+   renderAttention();if(currentTab==='tree')drawGraph();if(currentTab==='people')renderPeople();saveSoon();
+  }
+ };
+ inbox.onclick=()=>showAttentionInbox();
+}
+function reviewAttentionPerson(id){
+ if(state.pendingChoice||state.pendingSuccession)return;
+ if(!get(id))return;
+ showPersonStats(id,'history');
+}
+function showAttentionInbox(page=0){
+ if(state.pendingChoice||state.pendingSuccession)return;
+ const items=LEGACY_ATTENTION.unread(state),size=4,total=Math.max(1,Math.ceil(items.length/size));
+ page=Math.max(0,Math.min(total-1,Number(page)||0));
+ const cards=items.slice(page*size,(page+1)*size).map(a=>{
+  const p=get(a.personId);
+  if(!p)return '';
+  return '<button class="attention-list-item" data-attention-person="'+esc(p.id)+'"><span class="attention-list-dot '+(a.priority>=4?'urgent':'')+'">!</span><span class="attention-list-copy"><strong>'+esc(full(p))+'</strong><small>'+esc(a.label)+' · '+a.year+'</small><em>'+esc(a.message)+'</em></span><span class="attention-list-arrow">→</span></button>';
+ }).join('');
+ showModal('<div class="attention-inbox-sheet"><div class="attention-inbox-title"><div><div class="eyebrow">FAMILY UPDATES</div><h2>Who needs attention?</h2></div><button class="attention-inbox-close" id="attention-close" aria-label="Close updates" type="button">✕</button></div><p class="attention-inbox-intro">Important changes stay here until you review the person or dismiss the reminder.</p><div class="attention-inbox-items">'+(items.length?cards:'<p class="person-page-empty">Everyone is up to date.</p>')+'</div><div class="attention-inbox-foot">'+(total>1?'<button id="attention-prev" '+(page===0?'disabled':'')+'>← Prev</button><span>Page '+(page+1)+' / '+total+'</span><button id="attention-next" '+(page===total-1?'disabled':'')+'>Next →</button>':'<span>'+items.length+' unread update'+(items.length===1?'':'s')+'</span>')+'</div><div class="attention-inbox-bottom"><button id="attention-clear" '+(!items.length?'disabled':'')+'>Dismiss all reminders</button></div></div>');
+ $('#modal-content').classList.add('attention-inbox-dialog');
+ $('#modal-backdrop').classList.add('attention-inbox-backdrop');
+ $('#attention-close').onclick=closeModal;
+ if(total>1){
+  $('#attention-prev').onclick=()=>showAttentionInbox(page-1);
+  $('#attention-next').onclick=()=>showAttentionInbox(page+1);
+ }
+ $('#attention-clear').onclick=()=>{
+  LEGACY_ATTENTION.dismissAll(state);
+  saveSoon();renderAttention();if(currentTab==='tree')drawGraph();if(currentTab==='people')renderPeople();
+  showAttentionInbox(0);
+ };
+ $$('[data-attention-person]').forEach(b=>b.onclick=()=>reviewAttentionPerson(b.dataset.attentionPerson));
+}
+
 function showToast(msg){toast(msg)}
 function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.remove('hidden');clearTimeout(toastHandle);toastHandle=setTimeout(()=>el.classList.add('hidden'),2600)}
 function renderStats(){const all=persons(),living=all.filter(alive),family=all.filter(p=>p.inFamily),gs=family.map(p=>p.gen),generation=gs.length?Math.max(...gs)+1:1;
