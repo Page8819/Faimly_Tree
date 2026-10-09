@@ -49,9 +49,9 @@
   if(p.retired)return {ok:false,reason:'Must return from retirement first.'};
   return {ok:true,reason:'Eligible'};
  }
- function income(p){
+ function income(p,{includeRetired=false}={}){
   const c=ensure(p),job=jobs[c.jobId];
-  if(!job||p.retired)return 0;
+  if(!job||(p.retired&&!includeRetired))return 0;
   const grade=Math.max(1,Math.min(5,c.grade));
   const seniority=Math.min(.22,c.tenure*.009);
   const performance=(Math.max(0,Math.min(100,c.performance))-50)*.001;
@@ -98,6 +98,15 @@
    else if(rnd()<.008){c.jobId=null;c.grade=1;p.jobLevel=0;events.push('Lost their job after a workplace restructuring.');}
   }else if(autonomous){
    c.experience=Math.max(0,c.experience);
+   if(age>=18&&rnd()<.38){
+    const starter=Object.keys(jobs).filter(id=>canApply(p,id,age).ok&&jobs[id].xp===0);
+    if(starter.length){
+     const id=starter[Math.floor(rnd()*starter.length)];
+     c.lastApplication=null;
+     const r=apply(p,id,age,year,rnd);
+     if(r.ok)events.push(r.message);
+    }
+   }
   }
   // NPCs can pursue realistic career opportunities with earned qualifications.
   if(autonomous&&age>=18&&age<66&&rnd()<.05){
