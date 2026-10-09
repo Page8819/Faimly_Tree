@@ -254,3 +254,7 @@
  .person-page-relation{min-height:28px;padding:3px 8px}
  .person-page-event{min-height:34px;padding:4px 8px}
 }
+
+/* Eight compact financial and lifestyle decisions on a fixed no-scroll page */
+.person-page-actions{grid-template-rows:repeat(4,minmax(43px,1fr))}
+@media(max-height:520px){.person-page-actions{grid-template-rows:repeat(4,minmax(29px,1fr));gap:3px}.person-page-action{font-size:10px;min-height:28px}}
