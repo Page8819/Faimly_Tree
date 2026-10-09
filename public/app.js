@@ -396,7 +396,7 @@ function showPersonStats(id,tab='overview',page=0){
  if(state.pendingChoice||state.pendingSuccession)return;
  const p=get(id);if(!p)return;
  selectPerson(id);
- const allowed=['overview','health','education','career','stats','family','actions','history'];
+ const allowed=['overview','health','education','career','stats','family','stories','actions','history'];
  if(!allowed.includes(tab))tab='overview';
  const parents=(p.parentIds||[]).map(get).filter(Boolean);
  const adopters=(p.adoptiveParentIds||[]).map(get).filter(Boolean);
@@ -480,6 +480,13 @@ function showPersonStats(id,tab='overview',page=0){
   const size=6,pages=Math.max(1,Math.ceil(rel.length/size));page=Math.max(0,Math.min(page,pages-1));
   body=title('Family connections · '+rel.length)+
    '<div class="person-page-connections">'+(rel.length?rel.slice(page*size,(page+1)*size).map(x=>'<button class="person-page-relation" data-person="'+esc(x.person.id)+'"><span><strong>'+esc(full(x.person))+'</strong><small>'+esc(x.type)+' · Trust '+x.social.trust+' · Conflict '+x.social.conflict+'</small></span><b>'+x.strength+' / 100</b></button>').join(''):'<p class="person-page-empty">No recorded close family connections yet.</p>')+'</div>'+pageControls('family',page,pages);
+ }else if(tab==='stories'){
+  const stories=LEGACY_LIVING_IMPACT.allFor(state,id),active=stories.filter(x=>x.status==='active').length;
+  const count=3,pages=Math.max(1,Math.ceil(stories.length/count));page=Math.max(0,Math.min(page,pages-1));
+  body=title('Family stories · '+active+' active / '+stories.length+' recorded')+
+   '<p class="person-page-description">These storylines connect earlier choices to later family responsibilities and outcomes.</p>'+
+   '<div class="person-page-connections">'+(stories.length?stories.slice(page*count,(page+1)*count).map(x=>
+    '<button class="person-page-relation" data-open-story="'+esc(x.id)+'"><span><strong>'+esc(x.title||x.kind)+'</strong><small>'+x.startedYear+' · '+esc(x.cause||'Family event')+'</small></span><b>'+esc(x.status)+'</b></button>').join(''):'<p class="person-page-empty">This person has no recorded living-decision storylines yet.</p>')+'</div>'+pageControls('stories',page,pages);
  }else if(tab==='actions'){
   const canAct=alive(p)&&(state.mode==='family'||state.controlledId===p.id);
   const actions=[['partner','♥','Find partner'],['child','✦','Grow family'],['career','↑','Career'],['educate','◈','Education'],['move','⌁','Relocate'],['support','♡','Support kin'],['home','⌂','Buy a home'],['budget','◇','Adjust budget']];
@@ -495,7 +502,7 @@ function showPersonStats(id,tab='overview',page=0){
  function pageControls(which,current,total){
   return total>1?'<div class="person-page-pagination"><button data-page="-1" '+(current===0?'disabled':'')+' aria-label="Previous '+which+' page">← Prev</button><span>Page '+(current+1)+' of '+total+'</span><button data-page="1" '+(current===total-1?'disabled':'')+' aria-label="Next '+which+' page">Next →</button></div>':'';
  }
- const tabs=[['overview','Overview'],['health','Health'],['education','School'],['career','Jobs'],['stats','Stats'],['family','Family'],['actions','Actions'],['history','History']];
+ const tabs=[['overview','Overview'],['health','Health'],['education','School'],['career','Jobs'],['stats','Stats'],['family','Family'],['stories','Stories'],['actions','Actions'],['history','History']];
  const tabNav=tabs.map(([key,name])=>'<button role="tab" data-person-tab="'+key+'" aria-selected="'+(tab===key)+'" class="'+(tab===key?'active':'')+'">'+name+'</button>').join('');
  showModal('<div class="person-sheet person-sheet-compact"><div class="person-sheet-top"><div><div class="eyebrow">FAMILY RECORD · '+esc(p.id.toUpperCase())+' · '+esc(yearSpan(p))+'</div><div class="person-sheet-topname">'+esc(full(p))+'</div></div><button id="person-sheet-close" class="person-sheet-close" type="button" aria-label="Close person details">✕</button></div><nav class="person-sheet-tabs" role="tablist" aria-label="Character details">'+tabNav+'</nav><div class="person-sheet-screen" role="tabpanel" aria-label="'+esc(tab)+'">'+body+'</div></div>');
  $('#modal-backdrop').classList.add('person-profile-backdrop');
@@ -504,6 +511,7 @@ function showPersonStats(id,tab='overview',page=0){
  $$('[data-person-tab]').forEach(b=>b.onclick=()=>showPersonStats(id,b.dataset.personTab));
  $$('[data-person]').forEach(b=>b.onclick=()=>showPersonStats(b.dataset.person));
  $$('[data-page]').forEach(b=>b.onclick=()=>showPersonStats(id,tab,page+Number(b.dataset.page)));
+ $$('[data-open-story]').forEach(b=>b.onclick=()=>showStoryDetails(id,b.dataset.openStory));
  $$('[data-action]').forEach(b=>b.onclick=()=>{if(b.dataset.action==='career')return showPersonStats(id,'career');if(b.dataset.action==='educate')return showPersonStats(id,'education');decide(b.dataset.action);if(!state.pendingChoice&&!state.pendingSuccession)showPersonStats(id,'actions');});
  $$('[data-education-id]').forEach(b=>b.onclick=()=>{
   if(state.mode==='individual'&&id!==state.controlledId){toast('Take control to enroll in education.');return;}
@@ -525,6 +533,21 @@ function showPersonStats(id,tab='overview',page=0){
  });
  const take=$('#sheet-take-control');
  if(take)take.onclick=()=>{state.controlledId=p.id;saveSoon();showPersonStats(p.id,'actions');toast('You are now living as '+p.first+'.');};
+}
+
+
+function showStoryDetails(personId,storyId){
+ const person=get(personId),story=LEGACY_LIVING_IMPACT.allFor(state,personId).find(s=>s.id===storyId);
+ if(!person||!story)return;
+ const milestones=story.history.slice(-4).reverse().map(h=>'<div class="person-page-event"><b>'+esc(h.year)+'</b><span>'+esc(h.text)+'</span></div>').join('');
+ const canRevisit=story.status==='active'&&story.ownerId===personId&&(state.mode==='family'||state.controlledId===personId);
+ showModal('<div class="living-outcome-sheet"><div class="eyebrow">FAMILY STORY · '+esc(story.status.toUpperCase())+'</div><h2>'+esc(story.title||story.kind)+'</h2><p>'+esc(story.cause||'A turning point in family life')+'</p><div class="person-page-history">'+milestones+'</div><p class="living-disclaimer">'+esc(story.outcome||'This story is still unfolding.')+'</p><div class="modal-actions">'+(canRevisit?'<button class="primary" id="revisit-story">Revisit the plan</button>':'')+'<button class="secondary" id="story-back">Back to Stories</button></div></div>');
+ $('#modal-content').classList.add('living-decision-dialog');$('#modal-backdrop').classList.add('living-decision-backdrop');
+ $('#story-back').onclick=()=>showPersonStats(personId,'stories');
+ if(canRevisit)$('#revisit-story').onclick=()=>{
+  state.pendingChoice={personId:story.ownerId,kind:'followup',year:state.year,event:LEGACY_STORYLINES.followup(state,story)};
+  saveSoon();showLifeChoice();
+ };
 }
 
 function visiblePeople(){const all=persons();if(scope==='all'){
@@ -583,11 +606,17 @@ function drawGraph(){if(!state)return;const {w,h}=setCanvasSize();ctx.clearRect(
  for(const e of sceneEdges){const {a,b,kind}=e;ctx.beginPath();ctx.lineWidth=kind==='partner'?1.3:1.8;ctx.strokeStyle=kind==='partner'?'#a4845288':kind==='adopt'?'#80adbc95':'#648b7b99';ctx.setLineDash(kind==='parent'?[]:kind==='adopt'?[4,4]:[3,6]);
   if(kind==='partner'){ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y)}else{ctx.moveTo(a.x,a.y+44);const cy=(a.y+b.y)/2;ctx.bezierCurveTo(a.x,cy,b.x,cy,b.x,b.y-44)}ctx.stroke();ctx.setLineDash([]);
  }
+ const activeCount=new Map();for(const story of state.storylines||[])if(story.status==='active')for(const id of story.participants||[])activeCount.set(id,(activeCount.get(id)||0)+1);
  for(const n of scene){const p=n.p,selected=p.id===state.selectedId,dead=!alive(p),x=n.x-n.w/2,y=n.y-n.h/2;
   ctx.shadowBlur=selected?17:0;ctx.shadowColor=selected?'#bd996d9f':'transparent';roundPath(ctx,x,y,n.w,n.h,12);ctx.fillStyle=dead?'#142126':'#1c3032';ctx.fill();ctx.lineWidth=selected?2.5:1;ctx.strokeStyle=selected?'#e0bd7f':dead?'#3a4848':'#4e6e66';ctx.stroke();ctx.shadowBlur=0;
   const hu=hue(p.id);ctx.beginPath();ctx.fillStyle=dead?'#566463':`hsl(${hu},34%,39%)`;ctx.arc(n.x,y+25,16,0,Math.PI*2);ctx.fill();ctx.fillStyle=dead?'#c0cdbe':'#f8ebd9';ctx.font='600 13px Georgia,serif';ctx.textAlign='center';ctx.fillText(p.first.charAt(0)+p.last.charAt(0),n.x,y+29);
   ctx.fillStyle=dead?'#a3aaa5':'#f1f1e6';ctx.font='600 11px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText(ellipsis(p.first+' '+p.last,19),n.x,y+54,116);
   ctx.fillStyle=dead?'#788986':'#9bb3a8';ctx.font='10px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText(p.birthYear+' – '+(p.deathYear||'●'),n.x,y+70,115);
+  if(activeCount.has(p.id)){
+   ctx.beginPath();ctx.fillStyle='#dcb36b';ctx.arc(x+n.w-7,y+12,9,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#182927';ctx.font='700 10px -apple-system,BlinkMacSystemFont,sans-serif';
+   ctx.fillText(String(Math.min(9,activeCount.get(p.id))),x+n.w-7,y+15);
+  }
  }
  ctx.restore();}
 function selectPerson(id){if(!get(id))return;state.selectedId=id;$('#profile-panel').scrollTop=0;renderProfile();if(scope==='focus'){needsFit=true;layoutGraph()}else drawGraph();if(currentTab==='people')renderPeople();saveSoon();}
