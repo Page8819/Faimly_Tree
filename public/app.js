@@ -196,6 +196,10 @@ function maybeLifeChoice(){
   if(a>=38&&a<=63)available.push('midlife');
   if(available.length)kind=pick(available);
  }
+ if(!kind&&chance(.60)){
+  const e=LEGACY_LIVING_CONTEXT.propose({p,people:state.people,year:state.year,rnd});
+  if(e){state.pendingChoice={personId:p.id,kind:'living',year:state.year,event:e};return true;}
+ }
  if(!kind&&chance(state.realism==='casual'?.30:.24)){
   const event=LEGACY_EVENTS.propose({p,people:state.people,year:state.year,rnd});
   if(event){state.pendingChoice={personId:p.id,kind:'event',year:state.year,event};return true;}
@@ -206,14 +210,14 @@ function maybeLifeChoice(){
 }
 function showLifeChoice(){
  const pending=state.pendingChoice;if(!pending)return;
- const p=get(pending.personId),choice=['event','medical'].includes(pending.kind)?pending.event:LIFE_CHOICES[pending.kind];
+ const p=get(pending.personId),choice=['event','medical','living'].includes(pending.kind)?pending.event:LIFE_CHOICES[pending.kind];
  if(!p||!choice){state.pendingChoice=null;saveSoon();return;}
  showModal('<div class="eyebrow">LIFE DECISION / '+esc(choice.tag)+'</div><div class="life-choice-meta">'+esc(full(p))+' · Age '+age(p)+' · '+state.year+'</div><h2>'+esc(choice.title)+'</h2><p>'+esc(choice.text)+'</p><div class="life-choice-options">'+choice.options.map((o,i)=>'<button class="life-choice-option" data-life-option="'+esc(o[0])+'"><span class="life-choice-number">0'+(i+1)+'</span><span><strong>'+esc(o[1])+'</strong><small>'+esc(o[2])+'</small></span><span class="life-choice-arrow">→</span></button>').join('')+'</div><p class="modal-note">Your decision changes this person’s life and is remembered in the family chronicle.</p>');
  $$('.life-choice-option').forEach(b=>b.onclick=()=>resolveLifeChoice(b.dataset.lifeOption));
 }
 function resolveLifeChoice(action){
  const pending=state.pendingChoice;if(!pending)return;
- const p=get(pending.personId),template=['event','medical'].includes(pending.kind)?pending.event:LIFE_CHOICES[pending.kind];
+ const p=get(pending.personId),template=['event','medical','living'].includes(pending.kind)?pending.event:LIFE_CHOICES[pending.kind];
  if(!p||!template)return;
  const option=template.options.find(o=>o[0]===action);if(!option)return;
  const fortune=state.realism==='casual'?.82:state.realism==='strict'?.52:.67;
@@ -226,6 +230,10 @@ function resolveLifeChoice(action){
    const visit=LEGACY_MEDICINE.care(p,action,state.year,rnd);
    result=visit.message;
   }
+ }else if(pending.kind==='living'){
+  const story=LEGACY_LIVING_CONTEXT.resolve({p,event:pending.event,option:action,people:state.people,year:state.year,rnd});
+  if(!story)return;
+  result=story.result;others=story.others||[];
  }else if(pending.kind==='event'){
   const story=LEGACY_EVENTS.resolve({p,people:state.people,year:state.year,event:pending.event,option:action,rnd,cities});
   if(!story)return;
