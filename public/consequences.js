@@ -20,8 +20,8 @@
   const x=ensure(p);remember(x,action,year);
   const good=!/struggl|did not|lost|underperform|failed|without success/i.test(outcome);
   switch(action){
-   case 'college':x.calling='Academic';x.skills=clamp(x.skills+2,0,12);x.educationDebt+=14000;break;
-   case 'trade':x.calling='Trade';x.skills=clamp(x.skills+3,0,12);x.discipline++;break;
+   case 'college':x.calling='Academic student';break;
+   case 'trade':x.calling='Trade apprentice';x.discipline++;break;
    case 'work':x.calling='Workforce';x.momentum++;break;
    case 'promotion':x.momentum=clamp(x.momentum+(good?2:0),-6,12);break;
    case 'business':x.calling='Entrepreneur';x.enterprise=good?clamp(x.enterprise+1,0,3):Math.max(0,x.enterprise-1);x.momentum+=good?1:-1;break;
@@ -29,7 +29,7 @@
    case 'financial':case 'quality':case 'mentor':x.community=clamp(x.community+2,0,12);x.familyTime=clamp(x.familyTime+2,0,12);break;
    case 'balance':x.familyTime=clamp(x.familyTime+3,0,12);break;
    case 'independent':case 'solo':x.discipline=clamp(x.discipline+1,0,12);break;
-   case 'retrain':x.skills=clamp(x.skills+2,0,12);x.calling='Retrained';break;
+   case 'retrain':x.calling='Retraining';break;
    case 'invest':x.discipline=clamp(x.discipline+1,0,12);break;
    case 'continue':x.momentum=clamp(x.momentum+1,-6,12);break;
    case 'retire':x.enterprise=Math.max(0,x.enterprise-1);break;
