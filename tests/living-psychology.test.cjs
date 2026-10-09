@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict');
-require('../public/living-psychology.js');
+require('../public/living-context.js');require('../public/living-psychology.js');
 const P=globalThis.LEGACY_LIVING_PSYCHOLOGY;
 const p=(id,wealth=50000)=>({id,first:id,wealth,bonds:{},traits:{agreeableness:80,conscientiousness:60,openness:45,extraversion:55,emotionality:40},needs:{stress:25,physical:70}});
 test('motivations persist and reflect existing character traits',()=>{
