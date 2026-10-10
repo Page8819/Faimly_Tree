@@ -181,3 +181,10 @@ body{position:fixed;inset:0;overflow:hidden}
 button:focus-visible{outline:2px solid #f0ce8e;outline-offset:3px}
 @keyframes reveal-rise{from{transform:translateY(32px);opacity:0}to{transform:translateY(0);opacity:1}}
 @media(prefers-reduced-motion:reduce){.time-popup[open]{animation:none}}
+/* Explore the selected branch with fixed-size, accessible touch controls. */
+.app .branch-controls{position:absolute;z-index:8;left:14px;bottom:calc(max(8px,env(safe-area-inset-bottom,0px)) + 135px);width:min(340px,calc(100% - 95px));padding:8px 10px;border:1px solid #b8c49b44;border-radius:16px;background:#132b23f5;color:#d9c18e}
+.branch-controls small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;margin-bottom:5px}
+.branch-controls>div{display:flex;gap:5px}.branch-controls button{flex:1;min-width:0;min-height:44px;border:1px solid #b7c49944;border-radius:10px;background:#274237;color:#f0d8a8;font-size:10px;padding:5px}
+.branch-controls button:disabled{opacity:.45}.app.branch-view .canvas-caption{display:none}.app.branch-view .attention-banner{bottom:calc(max(8px,env(safe-area-inset-bottom,0px)) + 230px)}
+.app.zen-tree .branch-controls{display:none!important}
+@media(max-width:680px){.app .scope{padding:7px 9px}.app.branch-view .canvas-tools{bottom:calc(max(8px,env(safe-area-inset-bottom,0px)) + 64px)}}

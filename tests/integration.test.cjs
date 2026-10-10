@@ -129,6 +129,18 @@ test('game boots, offers a choice, advances time and hands off the family',async
  node('#time-popup').handlers.cancel({preventDefault(){}});
  assert.equal(node('#time-popup').open,false,'Escape dismisses sheet');
 
+ // Branch controls are wired to the rendered tree and preserve the saved population.
+ const population=Object.keys(state.people).length;
+ api.setTreeScope('branches');
+ assert.ok(api.getScene().some(n=>n.p.id===state.selectedId));
+ node('#branch-collapse').onclick();
+ assert.equal(api.getScene().length,1);
+ node('#branch-expand').onclick();
+ assert.ok(api.getScene().length>=1&&api.getScene().length<=60);
+ node('#branch-reset').onclick();
+ assert.equal(Object.keys(state.people).length,population);
+ api.setTreeScope('focus');
+
  // Reload never persists a playing flag.
  assert.equal(state.timeline.playing,undefined);
  const dateAfterFast=state.calendar.date;

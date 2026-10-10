@@ -781,19 +781,66 @@ function showStoryDetails(personId,storyId){
  };
 }
 
-function visiblePeople(){const all=persons();if(scope==='all'){
- if(all.length<=250)return all;
- const keep=new Set([state.selectedId,state.founderId,state.rootId]);
- let p=get(state.selectedId);while(p){keep.add(p.id);p=get(p.parentIds?.[0]);}
- const recents=all.slice().sort((a,b)=>b.birthYear-a.birthYear).slice(0,Math.max(0,250-keep.size));return [...new Set([...keep,...recents.map(p=>p.id)])].map(get).filter(Boolean);
+const TREE_LIMIT=60,BRANCH_BATCH=12;
+let branchRoot=null,branchWorld=null,branchExpanded=new Map(),treeRelatives=new Map(),treeChildren=new Map();
+let treeAttention=new Map(),treeStories=new Map();
+function indexTree(){
+ treeRelatives=new Map();treeChildren=new Map();
+ for(const p of persons()){
+  treeRelatives.set(p.id,new Set([...(p.parentIds||[]),...(p.adoptiveParentIds||[]),p.partnerId].filter(id=>get(id))));
+  for(const id of new Set([...(p.parentIds||[]),...(p.adoptiveParentIds||[])])){
+   if(!treeChildren.has(id))treeChildren.set(id,[]);treeChildren.get(id).push(p.id);
+  }
  }
- const p=get(state.selectedId);if(!p)return all.slice(0,30);
- const out=new Set([p.id]);function add(arr){for(const x of arr){if(x)out.add(x.id)}}
- add(p.parentIds.map(get));add(p.adoptiveParentIds.map(get));add([partner(p)]);add(kids(p));
- for(const parentId of [...p.parentIds,...p.adoptiveParentIds]){const pa=get(parentId);if(pa){add(pa.parentIds.map(get));add(pa.adoptiveParentIds.map(get));add(kids(pa));add([partner(pa)])}}
- for(const child of kids(p)){add(kids(child));add([partner(child)])}
- for(const pp of [...out].map(get)){if(pp&&pp.partnerId)add([partner(pp)]);}
- return [...out].map(get).filter(Boolean).slice(0,130);
+ for(const [id,children] of treeChildren)for(const child of children)treeRelatives.get(id)?.add(child);
+}
+function resetBranches(){branchRoot=state.selectedId;branchWorld=state;branchExpanded.clear();}
+function branchPeople(){
+ if(branchWorld!==state||!get(branchRoot))resetBranches();
+ const ids=new Set([branchRoot]),queue=[branchRoot];
+ for(let i=0;i<queue.length&&ids.size<TREE_LIMIT;i++){
+  const id=queue[i],count=branchExpanded.get(id)||0;
+  for(const relative of [...(treeRelatives.get(id)||[])].slice(0,count)){
+   if(ids.size>=TREE_LIMIT)break;
+   if(!ids.has(relative)){ids.add(relative);queue.push(relative);}
+  }
+ }
+ return [...ids].map(get).filter(Boolean);
+}
+function visiblePeople(){
+ indexTree();
+ if(scope==='branches')return branchPeople();
+ const p=get(state.selectedId);if(!p)return persons().slice(0,TREE_LIMIT);
+ const out=new Set([p.id]);
+ const children=p=>(treeChildren.get(p.id)||[]).slice(0,TREE_LIMIT).map(get).filter(Boolean);
+ function add(arr){for(const x of arr){if(x&&out.size<TREE_LIMIT)out.add(x.id)}}
+ add(p.parentIds.map(get));add(p.adoptiveParentIds.map(get));add([partner(p)]);add(children(p));
+ for(const id of [...p.parentIds,...p.adoptiveParentIds]){const pa=get(id);if(pa){add(pa.parentIds.map(get));add(pa.adoptiveParentIds.map(get));add(children(pa));add([partner(pa)])}}
+ for(const child of children(p)){add(children(child));add([partner(child)])}
+ for(const pp of [...out].map(get)){if(pp&&pp.partnerId)add([partner(pp)])}
+ return [...out].map(get).filter(Boolean);
+}
+function setTreeScope(value){
+ scope=value==='branches'?'branches':'focus';
+ if(scope==='branches'){resetBranches();branchExpanded.set(branchRoot,BRANCH_BATCH);}
+ $$('.scope').forEach(b=>{b.classList.toggle('active',b.dataset.scope===scope);b.setAttribute('aria-pressed',String(b.dataset.scope===scope));});
+ needsFit=true;layoutGraph();
+}
+function expandBranch(id=state.selectedId){
+ if(scope!=='branches'||!scene.some(n=>n.p.id===id))return;
+ if(scene.length>=TREE_LIMIT){toast('Collapse a branch or start from the selected person to explore further.');return;}
+ branchExpanded.set(id,(branchExpanded.get(id)||0)+BRANCH_BATCH);needsFit=true;layoutGraph();
+}
+function collapseBranch(id=state.selectedId){branchExpanded.delete(id);needsFit=true;layoutGraph();}
+function renderBranchControls(){
+ const panel=$('#branch-controls');panel.classList.toggle('hidden',scope!=='branches');
+ if(scope!=='branches')return;
+ const ids=new Set(scene.map(n=>n.p.id)),relatives=[...(treeRelatives.get(state.selectedId)||[])];
+ const hidden=relatives.filter(id=>!ids.has(id)).length;
+ $('#branch-label').textContent=full(get(state.selectedId))+' · '+hidden+' hidden relatives';
+ $('#branch-expand').textContent=hidden?'Expand +'+Math.min(BRANCH_BATCH,hidden):'All nearby shown';
+ $('#branch-expand').disabled=!hidden||scene.length>=TREE_LIMIT;
+ $('#branch-collapse').disabled=!branchExpanded.has(state.selectedId);
 }
 function layoutGraph(){const visible=visiblePeople();const groups=new Map();for(const p of visible){if(!groups.has(p.gen))groups.set(p.gen,[]);groups.get(p.gen).push(p)}
  const gens=[...groups.keys()].sort((a,b)=>a-b);const placements=new Map();const xgap=148,ygap=129;
@@ -822,11 +869,15 @@ function layoutGraph(){const visible=visiblePeople();const groups=new Map();for(
   for(const parentId of [...p.parentIds,...p.adoptiveParentIds]){const pa=placements.get(parentId);if(pa)sceneEdges.push({a:pa,b:n,kind:p.adoptiveParentIds.includes(parentId)?'adopt':'parent'});}
   if(p.partnerId&&ids.has(p.partnerId)&&p.id<p.partnerId){sceneEdges.push({a:n,b:placements.get(p.partnerId),kind:'partner'});}
  }
- $('#tree-subhead').textContent=scope==='all'&&persons().length>250?`Showing 250 of ${fmtN(persons().length)} lives. Use Focus for close relatives.`:`${fmtN(scene.length)} visible people · ${scope==='focus'?'Selected family circle':'Recorded family network'}`;
+ $('#tree-subhead').textContent=`${fmtN(scene.length)} visible people · ${scope==='focus'?'Selected family circle':'Tap a person to explore their branch'}`;
+ $('#app').classList.toggle('branch-view',scope==='branches');
+ renderBranchControls();
+ treeAttention=LEGACY_ATTENTION.counts(state);treeStories=new Map();
+ for(const story of state.storylines||[])if(story.status==='active')for(const id of story.participants||[])treeStories.set(id,(treeStories.get(id)||0)+1);
  if(needsFit){fitScene();if(scope==='focus'&&scene.length>24&&camera.scale<.5)centerPerson();needsFit=false}
  drawGraph();
 }
-function setCanvasSize(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(rect.width*dpr));canvas.height=Math.max(1,Math.round(rect.height*dpr));ctx.setTransform(dpr,0,0,dpr,0,0);return {w:rect.width,h:rect.height};}
+function setCanvasSize(){const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);const width=Math.max(1,Math.round(rect.width*dpr)),height=Math.max(1,Math.round(rect.height*dpr));if(canvas.width!==width)canvas.width=width;if(canvas.height!==height)canvas.height=height;ctx.setTransform(dpr,0,0,dpr,0,0);return {w:rect.width,h:rect.height};}
 function appViewportHeight(){
  const inner=Number(window.innerHeight)||0,v=window.visualViewport;
  const zoomed=v&&Math.abs((v.scale||1)-1)>.01;
@@ -846,7 +897,7 @@ function treeViewport(){
  if(!zen&&r.width>680&&r.height<540){top=135;bottom=95;}
  if(!zen&&typeof window.getComputedStyle==='function'){
   const heading=$('.tree-view .panel-heading').getBoundingClientRect();
-  const dock=$('#reveal-menu').getBoundingClientRect();
+  const dock=$(scope==='branches'?'#branch-controls':'#reveal-menu').getBoundingClientRect();
   if(Number.isFinite(heading.bottom))top=heading.bottom-r.top+18;
   if(dock.top>r.top&&dock.left<r.right&&dock.right>r.left)bottom=r.bottom-dock.top+18;
   if(r.width<=680){const selected=$('#selected-person').getBoundingClientRect();if(selected.top>r.top)bottom=Math.max(bottom,r.bottom-selected.top+18);}
@@ -868,9 +919,8 @@ function drawGraph(){if(!state)return;const {w,h}=setCanvasSize();ctx.clearRect(
  for(const e of sceneEdges){const {a,b,kind}=e;ctx.beginPath();ctx.lineWidth=kind==='partner'?1.3:1.8;ctx.strokeStyle=kind==='partner'?'#a4845288':kind==='adopt'?'#80adbc95':'#648b7b99';ctx.setLineDash(kind==='parent'?[]:kind==='adopt'?[4,4]:[3,6]);
   if(kind==='partner'){ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y)}else{ctx.moveTo(a.x,a.y+44);const cy=(a.y+b.y)/2;ctx.bezierCurveTo(a.x,cy,b.x,cy,b.x,b.y-44)}ctx.stroke();ctx.setLineDash([]);
  }
- const attentionCounts=LEGACY_ATTENTION.counts(state);
- const activeCount=new Map();for(const story of state.storylines||[])if(story.status==='active')for(const id of story.participants||[])activeCount.set(id,(activeCount.get(id)||0)+1);
- for(const n of scene){const p=n.p,selected=p.id===state.selectedId,dead=!alive(p),x=n.x-n.w/2,y=n.y-n.h/2;
+ const attentionCounts=treeAttention,activeCount=treeStories;
+ for(const n of scene){if((n.x+n.w/2)*camera.scale+camera.x<0||(n.x-n.w/2)*camera.scale+camera.x>w||(n.y+n.h/2)*camera.scale+camera.y<0||(n.y-n.h/2)*camera.scale+camera.y>h)continue;const p=n.p,selected=p.id===state.selectedId,dead=!alive(p),x=n.x-n.w/2,y=n.y-n.h/2;
   ctx.shadowBlur=selected?17:0;ctx.shadowColor=selected?'#bd996d9f':'transparent';roundPath(ctx,x,y,n.w,n.h,12);ctx.fillStyle=dead?'#142126':'#1c3032';ctx.fill();ctx.lineWidth=selected?2.5:1;ctx.strokeStyle=selected?'#e0bd7f':dead?'#3a4848':'#4e6e66';ctx.stroke();ctx.shadowBlur=0;
   const hu=hue(p.id);ctx.beginPath();ctx.fillStyle=dead?'#566463':`hsl(${hu},34%,39%)`;ctx.arc(n.x,y+25,16,0,Math.PI*2);ctx.fill();ctx.fillStyle=dead?'#c0cdbe':'#f8ebd9';ctx.font='600 13px Georgia,serif';ctx.textAlign='center';ctx.fillText(p.first.charAt(0)+p.last.charAt(0),n.x,y+29);
   ctx.fillStyle=dead?'#a3aaa5':'#f1f1e6';ctx.font='600 11px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText(ellipsis(p.first+' '+p.last,19),n.x,y+54,116);
@@ -889,7 +939,7 @@ function drawGraph(){if(!state)return;const {w,h}=setCanvasSize();ctx.clearRect(
   }
  }
  ctx.restore();}
-function selectPerson(id){if(!get(id))return;state.selectedId=id;$('#profile-panel').scrollTop=0;renderProfile();if(scope==='focus'){needsFit=true;layoutGraph()}else drawGraph();if(currentTab==='people')renderPeople();saveSoon();}
+function selectPerson(id){if(!get(id))return;state.selectedId=id;$('#profile-panel').scrollTop=0;renderProfile();if(scope==='focus'){needsFit=true;layoutGraph()}else{if(!scene.some(n=>n.p.id===id)){resetBranches();branchExpanded.set(id,BRANCH_BATCH);needsFit=true;layoutGraph();}else{renderBranchControls();drawGraph();}}if(currentTab==='people')renderPeople();saveSoon();}
 function renderPeople(){const search=$('#people-search').value.toLocaleLowerCase().trim();const list=persons().slice().sort((a,b)=>Number(alive(b))-Number(alive(a))||b.birthYear-a.birthYear);
  const filtered=list.filter(p=>(full(p)+' '+p.city+' '+(jobs[Math.min(p.jobLevel,5)]||'')).toLowerCase().includes(search));
  const attention=LEGACY_ATTENTION.counts(state);
@@ -961,7 +1011,7 @@ function chooseSuccessor(id){
 
 function newWorldModal(){showModal(`<div class="eyebrow">THE BEGINNING OF EVERYTHING</div><h2>Begin a new legacy</h2><p>Start with one person, two parents, and a sibling. Every life that follows grows from this history.</p><label for="new-name">Founding character</label><input maxlength="50" id="new-name" class="field-input" value="Alex Morgan" placeholder="First and last name" /><label for="new-sex">Founding character</label><select id="new-sex" class="field-input"><option value="male">Male</option><option value="female">Female</option></select><label for="new-year">Starting year</label><input id="new-year" class="field-input" type="number" min="1800" max="2200" value="2026" /><div class="modal-warning">Creating a new world replaces the current active game. Export your family history first if you want to keep it.</div><div class="modal-actions"><button class="secondary" id="cancel-modal">Cancel</button><button class="primary" id="create-world">Create family →</button></div>`);
  $('#cancel-modal').onclick=closeModal;$('#create-world').onclick=()=>{let v=$('#new-name').value.trim(),y=Number($('#new-year').value);if(!v||!Number.isInteger(y)||y<1800||y>2200){toast('Enter a name and a starting year from 1800 to 2200.');return}newWorld(v,$('#new-sex').value,y);closeModal();saveSoon();setTab('tree');render();toast('A new family story has begun.');};}
-function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">LEGACY <strong>v1.26.0</strong> · Edge-to-edge display · Automatic update checks</p><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
+function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">LEGACY <strong>v1.27.0</strong> · Edge-to-edge display · Automatic update checks</p><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
  $('#realism-select').onchange=e=>{state.realism=e.target.value;saveSoon();toast(`Realism: ${state.realism}.`)};
  $('#export-game').onclick=exportGame;$('#import-game').onclick=()=>$('#import-file').click();$('#import-file').onchange=handleImport;
  $('#save-game').onclick=()=>saveGame().then(ok=>toast(ok?'Family saved on this device.':'Storage unavailable; export a backup instead.'));
@@ -1032,7 +1082,10 @@ function bind(){
   document.addEventListener('focusout',()=>setTimeout(syncAppViewport,150));
  }
  $$('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
- $$('.scope').forEach(b=>b.onclick=()=>{scope=b.dataset.scope;$$('.scope').forEach(x=>x.classList.toggle('active',x.dataset.scope===scope));needsFit=true;layoutGraph()});
+ $$('.scope').forEach(b=>b.onclick=()=>setTreeScope(b.dataset.scope));
+ $('#branch-expand').onclick=()=>expandBranch();
+ $('#branch-collapse').onclick=()=>collapseBranch();
+ $('#branch-reset').onclick=()=>{resetBranches();branchExpanded.set(branchRoot,BRANCH_BATCH);needsFit=true;layoutGraph();};
  $$('.mode-toggle button').forEach(b=>b.onclick=()=>{state.mode=b.dataset.mode;saveSoon();render();toast(state.mode==='individual'?'Individual Control: follow a selected life.':'Family Control: direct any living relative.')});
  $$('.advance').forEach(b=>b.onclick=()=>{closeTimeControls();advance(Number(b.dataset.years));});
  $('#advance-hour').onclick=()=>{closeTimeControls();advanceCalendar('hour',1);};
@@ -1138,5 +1191,5 @@ async function init(){state=await loadGame();if(!state){newWorld();await saveGam
  }}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
-window.LEGACY_TEST={getState:()=>state,addEvent,advance,advanceCalendar,renderCalendar,showCalendarDetails,renderTimeline,timelinePlay,timelinePause,timelineAdvance,timelineSpeed,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera}),fitScene,treeViewport,centerPerson,zoomTree,toggleTreeFullscreen,setTab,openRevealMenu,openTimeControls,closeTimeControls};
+window.LEGACY_TEST={getState:()=>state,addEvent,advance,advanceCalendar,renderCalendar,showCalendarDetails,renderTimeline,timelinePlay,timelinePause,timelineAdvance,timelineSpeed,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera}),fitScene,treeViewport,centerPerson,zoomTree,toggleTreeFullscreen,setTab,setTreeScope,expandBranch,collapseBranch,visiblePeople,openRevealMenu,openTimeControls,closeTimeControls};
 })();

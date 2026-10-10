@@ -7,14 +7,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="LEGACY" />
-<meta name="legacy-build" content="1.26.0" />
+<meta name="legacy-build" content="1.27.0" />
 <meta name="description" content="A living family-tree simulation. Every generation has a story." />
-<link rel="manifest" href="./manifest.webmanifest?v=1.26.0" />
+<link rel="manifest" href="./manifest.webmanifest?v=1.27.0" />
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
 <link rel="icon" type="image/png" href="./icons/icon-192.png" />
 <title>LEGACY — A Living Family Tree</title>
-<link rel="stylesheet" href="./styles.css?v=1.26.0" />
-<link rel="stylesheet" href="./interface.css?v=1.26.0" />
+<link rel="stylesheet" href="./styles.css?v=1.27.0" />
+<link rel="stylesheet" href="./interface.css?v=1.27.0" />
 </head>
 <body>
 <div id="app" class="app immersive-tree">
@@ -30,10 +30,13 @@
     <button type="button" id="calendar-detail" class="calendar-date-button" aria-label="Open calendar and local work schedule"><span class="calendar-primary" id="calendar-date">January • 1st • 2026</span><small id="calendar-weekday">Thursday · Day 1 of 365</small></button>
 
   </section>
-  <main class="workspace">
+  <div id="branch-controls" class="branch-controls hidden" aria-label="Selected branch">
+ <small id="branch-label" aria-live="polite"></small><div><button id="branch-expand" type="button">Expand</button><button id="branch-collapse" type="button">Collapse</button><button id="branch-reset" type="button" title="Start a fresh branch from the selected person">Start here</button></div>
+ </div>
+ <main class="workspace">
     <section class="workspace-primary" id="primary-panel">
       <div id="tree-view" class="tree-view">
-        <div class="panel-heading"><div><div class="eyebrow">YOUR LIVING DYNASTY</div><h1 id="tree-heading">The Morgan family</h1><div id="tree-subhead" class="panel-subtext">Every life leaves a branch.</div></div><div class="scope-switch"><button data-scope="focus" class="scope active">Focus</button><button data-scope="all" class="scope">All</button></div></div>
+        <div class="panel-heading"><div><div class="eyebrow">YOUR LIVING DYNASTY</div><h1 id="tree-heading">The Morgan family</h1><div id="tree-subhead" class="panel-subtext">Every life leaves a branch.</div></div><div class="scope-switch"><button data-scope="focus" class="scope active">Focus</button><button data-scope="branches" class="scope">Branches</button></div></div>
         <div class="canvas-wrap" id="canvas-wrap"><canvas id="tree-canvas" aria-label="Interactive family tree. Tap a person to select, hold a person to open full statistics, drag to pan and pinch to zoom."></canvas><div class="canvas-caption" id="canvas-caption">Drag to explore · Pinch to zoom</div>
           <button id="attention-inbox" class="attention-inbox-button hidden" type="button" aria-label="Open family updates"><span aria-hidden="true">✦</span> Updates <b id="attention-count">0</b></button>
           <div id="attention-banner" class="attention-banner hidden" role="status" aria-live="polite">
@@ -83,23 +86,23 @@
 </dialog>
 <div id="modal-backdrop" class="modal-backdrop hidden"><div class="modal" id="modal-content" role="dialog" aria-modal="true"></div></div>
 <div id="toast" class="toast hidden" role="status"></div>
-<script src="./careers.js?v=1.26.0"></script>
-<script src="./education.js?v=1.26.0"></script>
-<script src="./medicine.js?v=1.26.0"></script>
-<script src="./human.js?v=1.26.0"></script>
-<script src="./economy.js?v=1.26.0"></script>
-<script src="./consequences.js?v=1.26.0"></script>
-<script src="./events.js?v=1.26.0"></script>
-<script src="./succession.js?v=1.26.0"></script>
-<script src="./relationships.js?v=1.26.0"></script>
-<script src="./living-context.js?v=1.26.0"></script>
-<script src="./living-psychology.js?v=1.26.0"></script>
-<script src="./living-decisions.js?v=1.26.0"></script>
-<script src="./living-storylines.js?v=1.26.0"></script>
-<script src="./living-impact.js?v=1.26.0"></script>
-<script src="./attention.js?v=1.26.0"></script>
-<script src="./calendar.js?v=1.26.0"></script>
-<script src="./timeline.js?v=1.26.0"></script>
-<script src="./app.js?v=1.26.0"></script>
+<script src="./careers.js?v=1.27.0"></script>
+<script src="./education.js?v=1.27.0"></script>
+<script src="./medicine.js?v=1.27.0"></script>
+<script src="./human.js?v=1.27.0"></script>
+<script src="./economy.js?v=1.27.0"></script>
+<script src="./consequences.js?v=1.27.0"></script>
+<script src="./events.js?v=1.27.0"></script>
+<script src="./succession.js?v=1.27.0"></script>
+<script src="./relationships.js?v=1.27.0"></script>
+<script src="./living-context.js?v=1.27.0"></script>
+<script src="./living-psychology.js?v=1.27.0"></script>
+<script src="./living-decisions.js?v=1.27.0"></script>
+<script src="./living-storylines.js?v=1.27.0"></script>
+<script src="./living-impact.js?v=1.27.0"></script>
+<script src="./attention.js?v=1.27.0"></script>
+<script src="./calendar.js?v=1.27.0"></script>
+<script src="./timeline.js?v=1.27.0"></script>
+<script src="./app.js?v=1.27.0"></script>
 </body>
 </html>
