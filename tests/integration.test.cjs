@@ -34,6 +34,36 @@ test('game boots, offers a choice, advances time and hands off the family',async
  const api=sandbox.LEGACY_TEST;
  assert.ok(api,'integration hooks installed');
  let state=api.getState();assert.equal(state.year,2026);
+ // Browsing a inspectedRelative must not replace the followed/controlled life or move the camera.
+ const originalTarget=state.controlledId;
+ const inspectedRelative=Object.values(state.people).find(p=>p.id!==originalTarget&&!p.deathYear);
+ api.render();
+ const followedName=node('#selected-name').textContent;
+ const originalCamera=JSON.stringify(api.getCamera()),originalScene=api.getScene().map(n=>n.p.id).join(',');
+ api.selectPerson(inspectedRelative.id);
+ assert.equal(state.selectedId,inspectedRelative.id);
+ assert.equal(state.controlledId,originalTarget);
+ assert.equal(node('#selected-name').textContent,followedName);
+ assert.equal(JSON.stringify(api.getCamera()),originalCamera);
+ assert.equal(api.getScene().map(n=>n.p.id).join(','),originalScene);
+ api.showPersonStats(inspectedRelative.id,'actions');
+ assert.equal(state.controlledId,originalTarget,'opening a profile only inspects');
+ node('#selected-person').onclick();
+ assert.equal(state.selectedId,originalTarget,'Following card opens the followed character');
+ api.showPersonStats(inspectedRelative.id,'actions');
+ node('#sheet-take-control').onclick();
+ assert.equal(state.controlledId,inspectedRelative.id,'Live as is the explicit target switch');
+ assert.equal(node('#selected-name').textContent,inspectedRelative.first+' '+inspectedRelative.last);
+ api.selectPerson(originalTarget);
+ assert.equal(state.controlledId,inspectedRelative.id);
+ node('#take-control').onclick();
+ assert.equal(state.controlledId,originalTarget,'sidebar Live as uses the same switch');
+ const oldDeath=inspectedRelative.deathYear;inspectedRelative.deathYear=state.year;
+ assert.equal(api.liveAs(inspectedRelative.id),false,'cannot live as a deceased person');inspectedRelative.deathYear=oldDeath;
+ await api.saveGame();const targetSave=await api.loadGame();
+ assert.equal(targetSave.controlledId,originalTarget,'followed target persists');
+ node('#modal-backdrop').classList.add('hidden');
+
  // Full-screen camera keeps the entire fitted graph within its unobstructed viewport.
  const treeCanvas=node('#tree-canvas'),originalRect=treeCanvas.getBoundingClientRect;
  for(const [width,height] of [[390,844],[844,390],[1440,900]]){

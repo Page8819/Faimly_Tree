@@ -502,7 +502,7 @@ function calendarTime(minutes){
 function renderCalendar(){
  const c=LEGACY_CALENDAR.ensure(state),parsed=LEGACY_CALENDAR.parse(c.date);
  renderTimeline();
- const p=get(state.selectedId)||get(state.controlledId);
+ const p=get(state.controlledId)||get(state.selectedId);
  const summary=p?LEGACY_CALENDAR.schedule(p,state,LEGACY_CAREERS.jobs):null;
  const count=LEGACY_CALENDAR.dayOfYear(parsed.year,parsed.month,parsed.day);
  $('#header-day-count').textContent='DAY '+String(count).padStart(3,'0')+' / '+(LEGACY_CALENDAR.leap(parsed.year)?366:365);
@@ -515,7 +515,7 @@ function renderCalendar(){
 }
 function showCalendarDetails(){
  if(state.pendingChoice||state.pendingSuccession)return;
- const c=LEGACY_CALENDAR.ensure(state),p=get(state.selectedId)||get(state.controlledId),info=p?LEGACY_CALENDAR.schedule(p,state,LEGACY_CAREERS.jobs):null;
+ const c=LEGACY_CALENDAR.ensure(state),p=get(state.controlledId)||get(state.selectedId),info=p?LEGACY_CALENDAR.schedule(p,state,LEGACY_CAREERS.jobs):null;
  if(!p)return;
  const upcoming=[];let date=c.date;
  for(let i=0;i<=100&&upcoming.length<4;i++){
@@ -588,10 +588,13 @@ function advanceCalendar(unit,amount=1,quiet=false){
 }
 
 function renderProfile(){const p=get(state.selectedId);if(!p)return;
- $('#selected-name').textContent=full(p);
- $('#selected-avatar').textContent=initials(p);
- $('#selected-meta').textContent=ages(p)+' · '+p.city;
- $('#selected-person').setAttribute('aria-label','Open '+full(p)+"'s life and decisions");
+ const target=get(state.controlledId);
+ if(target){
+ $('#selected-name').textContent=full(target);
+ $('#selected-avatar').textContent=initials(target);
+ $('#selected-meta').textContent=ages(target)+' · '+target.city;
+ $('#selected-person').setAttribute('aria-label','Open followed character '+full(target));
+ }
  const parents=p.parentIds.map(get).filter(Boolean),adopters=p.adoptiveParentIds.map(get).filter(Boolean),children=kids(p),q=partner(p);
  const mine=state.mode==='family'||(p.id===state.controlledId);
  const canAct=alive(p)&&mine;
@@ -607,7 +610,7 @@ function renderProfile(){const p=get(state.selectedId);if(!p)return;
  <div class="profile-stats"><div class="profile-stat"><small>Occupation</small><strong>${esc(job)}</strong></div><div class="profile-stat"><small>Personal wealth</small><strong>${money(p.wealth)}</strong></div><div class="profile-stat"><small>Education</small><strong>${esc(education)}</strong></div><div class="profile-stat"><small>Children</small><strong>${children.length} ${children.length===1?'child':'children'}</strong></div></div>
  <div class="panel-block"><div class="block-title">Life path & legacy</div><div class="identity">${esc(LEGACY_CONSEQUENCES.describe(p))}</div></div>
   <div class="panel-block"><div class="block-title">Family connections <span class="block-sub">${children.length+parents.length+adopters.length+(q?1:0)} direct ties</span></div><div class="relation-row">${distinctRel(parents,'parent')}${distinctRel(adopters,'adoptive parent')}${q?distinctRel([q],'partner'):''}${distinctRel(children,'child')}${!parents.length&&!adopters.length&&!q&&!children.length?'<span class="empty-note">No direct relatives recorded yet.</span>':''}</div></div>
- <div class="panel-block"><div class="block-title">Life decisions <span class="block-sub">${state.mode==='individual'?'individual':'family'} control</span></div>${state.mode==='individual'&&p.id!==state.controlledId&&alive(p)?'<button class="action special" id="take-control" style="width:100%;margin-bottom:9px">▶ Live as '+esc(p.first)+'</button>':''}<div class="actions-grid">
+ <div class="panel-block"><div class="block-title">Life decisions <span class="block-sub">${state.mode==='individual'?'individual':'family'} control</span></div>${p.id!==state.controlledId&&alive(p)?'<button class="action special" id="take-control" style="width:100%;margin-bottom:9px">▶ Live as '+esc(p.first)+'</button>':''}<div class="actions-grid">
  ${[['partner','♥ Find partner'],['child','✦ Grow family'],['career','↑ Career'],['educate','◈ Education'],['move','⌁ Relocate'],['support','♡ Support kin']].map(([a,l])=>`<button class="action ${a==='child'?'special':''}" data-action="${a}" ${canAct?'':'disabled'}>${l}</button>`).join('')}
  </div>${!alive(p)?'<div class="identity">This life has ended. Their history remains part of the family.</div>':state.mode==='individual'?'<div class="identity">Individual Control · Direct the currently selected life.</div>':'<div class="identity">Family Control · Direct anyone in the tree.</div>'}</div>
  <div class="panel-block"><div class="block-title">Personality & appearance</div>${[['Curiosity',p.traits.openness],['Discipline',p.traits.conscientiousness],['Sociability',p.traits.extraversion],['Cooperation',p.traits.agreeableness],['Emotional sensitivity',p.traits.emotionality]].map(([label,value])=>`<div class="trait-row"><span>${label}</span><span class="trait-track"><span class="trait-fill" style="width:${Math.max(0,Math.min(100,value))}%"></span></span><span>${value}</span></div>`).join('')}<div class="identity">${esc(p.eyeTint)} eyes · ${esc(p.hairTint)} hair · illustrative inheritance model</div></div>
@@ -615,7 +618,7 @@ function renderProfile(){const p=get(state.selectedId);if(!p)return;
  <div class="profile-footer-note">Character traits, finances, and demographics are simplified for this prototype. The simulation is not a scientific prediction of real lives.</div>`;
  $$('#profile-content [data-person]').forEach(b=>b.addEventListener('click',()=>selectPerson(b.dataset.person)));
  $$('#profile-content [data-action]').forEach(b=>b.addEventListener('click',()=>decide(b.dataset.action)));
- const take=$('#take-control');if(take)take.onclick=()=>{state.controlledId=p.id;saveSoon();renderProfile();toast(`You are now living as ${p.first}.`)};
+ const take=$('#take-control');if(take)take.onclick=()=>liveAs(p.id);
 }
 
 /* Immersive genealogy: select with a tap, hold to open an accessible full-profile sheet. */
@@ -723,7 +726,7 @@ function showPersonStats(id,tab='overview',page=0){
   const actions=[['partner','♥','Find partner'],['child','✦','Grow family'],['career','↑','Career'],['educate','◈','Education'],['move','⌁','Relocate'],['support','♡','Support kin'],['home','⌂','Buy a home'],['budget','◇','Adjust budget']];
   body=title('Life decisions')+'<div class="person-page-actions">'+actions.map(([id,icon,label])=>'<button class="person-page-action" data-action="'+id+'" '+(canAct?'':'disabled')+'><span>'+icon+'</span>'+esc(label)+'</button>').join('')+'</div>'+
    (!alive(p)?'<p class="person-page-description">Their life has ended. The family record remains available.</p>':
-    state.mode==='individual'&&state.controlledId!==p.id?'<button class="person-page-take" id="sheet-take-control">▶ Live as '+esc(p.first)+'</button>':
+    state.controlledId!==p.id?'<button class="person-page-take" id="sheet-take-control">▶ Live as '+esc(p.first)+'</button>':
     '<p class="person-page-description">Your choices change relationships, finances and future opportunities. Major events also appear as time advances.</p>');
  }else if(tab==='history'){
   const size=4,pages=Math.max(1,Math.ceil(history.length/size));page=Math.max(0,Math.min(page,pages-1));
@@ -763,7 +766,7 @@ function showPersonStats(id,tab='overview',page=0){
   toast(result.message);
  });
  const take=$('#sheet-take-control');
- if(take)take.onclick=()=>{state.controlledId=p.id;saveSoon();showPersonStats(p.id,'actions');toast('You are now living as '+p.first+'.');};
+ if(take)take.onclick=()=>{if(liveAs(p.id))showPersonStats(p.id,'actions');};
 }
 
 
@@ -810,7 +813,7 @@ function branchPeople(){
 function visiblePeople(){
  indexTree();
  if(scope==='branches')return branchPeople();
- const p=get(state.selectedId);if(!p)return persons().slice(0,TREE_LIMIT);
+ const p=get(state.controlledId)||get(state.selectedId);if(!p)return persons().slice(0,TREE_LIMIT);
  const out=new Set([p.id]);
  const children=p=>(treeChildren.get(p.id)||[]).slice(0,TREE_LIMIT).map(get).filter(Boolean);
  function add(arr){for(const x of arr){if(x&&out.size<TREE_LIMIT)out.add(x.id)}}
@@ -869,7 +872,7 @@ function layoutGraph(){const visible=visiblePeople();const groups=new Map();for(
   for(const parentId of [...p.parentIds,...p.adoptiveParentIds]){const pa=placements.get(parentId);if(pa)sceneEdges.push({a:pa,b:n,kind:p.adoptiveParentIds.includes(parentId)?'adopt':'parent'});}
   if(p.partnerId&&ids.has(p.partnerId)&&p.id<p.partnerId){sceneEdges.push({a:n,b:placements.get(p.partnerId),kind:'partner'});}
  }
- $('#tree-subhead').textContent=`${fmtN(scene.length)} visible people · ${scope==='focus'?'Selected family circle':'Tap a person to explore their branch'}`;
+ $('#tree-subhead').textContent=`${fmtN(scene.length)} visible people · ${scope==='focus'?'Following family circle':'Tap a person to explore their branch'}`;
  $('#app').classList.toggle('branch-view',scope==='branches');
  renderBranchControls();
  treeAttention=LEGACY_ATTENTION.counts(state);treeStories=new Map();
@@ -909,7 +912,7 @@ function fitScene(){const r=canvas.getBoundingClientRect();if(!scene.length||!r.
  const v=treeViewport(),sx=v.w/(maxX-minX+30),sy=v.h/(maxY-minY+30);
  camera.scale=Math.max(.12,Math.min(1.35,sx,sy));camera.x=v.x+v.w/2-((minX+maxX)/2)*camera.scale;camera.y=v.y+v.h/2-((minY+maxY)/2)*camera.scale;
 }
-function centerPerson(){const n=scene.find(n=>n.p.id===state.selectedId);if(!n)return;const v=treeViewport();camera.scale=Math.max(.95,camera.scale);camera.x=v.x+v.w/2-n.x*camera.scale;camera.y=v.y+v.h/2-n.y*camera.scale;drawGraph();}
+function centerPerson(){let n=scene.find(n=>n.p.id===state.controlledId);if(!n){setTreeScope('focus');n=scene.find(n=>n.p.id===state.controlledId);}if(!n)return;const v=treeViewport();camera.scale=Math.max(.95,camera.scale);camera.x=v.x+v.w/2-n.x*camera.scale;camera.y=v.y+v.h/2-n.y*camera.scale;drawGraph();}
 function zoomTree(factor){const v=treeViewport(),x=v.x+v.w/2,y=v.y+v.h/2,wx=(x-camera.x)/camera.scale,wy=(y-camera.y)/camera.scale;camera.scale=Math.max(.12,Math.min(3,camera.scale*factor));camera.x=x-wx*camera.scale;camera.y=y-wy*camera.scale;drawGraph();}
 function toggleTreeFullscreen(force){const app=$('#app'),active=typeof force==='boolean'?force:!app.classList.contains('zen-tree');app.classList.toggle('zen-tree',active);$('#tree-fullscreen').setAttribute('aria-pressed',String(active));$('#tree-fullscreen').setAttribute('aria-label',active?'Restore game controls':'Hide controls for a full-screen tree');$('#tree-fullscreen').textContent=active?'↙':'⛶';requestAnimationFrame(()=>{fitScene();drawGraph()});}
 
@@ -920,8 +923,8 @@ function drawGraph(){if(!state)return;const {w,h}=setCanvasSize();ctx.clearRect(
   if(kind==='partner'){ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y)}else{ctx.moveTo(a.x,a.y+44);const cy=(a.y+b.y)/2;ctx.bezierCurveTo(a.x,cy,b.x,cy,b.x,b.y-44)}ctx.stroke();ctx.setLineDash([]);
  }
  const attentionCounts=treeAttention,activeCount=treeStories;
- for(const n of scene){if((n.x+n.w/2)*camera.scale+camera.x<0||(n.x-n.w/2)*camera.scale+camera.x>w||(n.y+n.h/2)*camera.scale+camera.y<0||(n.y-n.h/2)*camera.scale+camera.y>h)continue;const p=n.p,selected=p.id===state.selectedId,dead=!alive(p),x=n.x-n.w/2,y=n.y-n.h/2;
-  ctx.shadowBlur=selected?17:0;ctx.shadowColor=selected?'#bd996d9f':'transparent';roundPath(ctx,x,y,n.w,n.h,12);ctx.fillStyle=dead?'#142126':'#1c3032';ctx.fill();ctx.lineWidth=selected?2.5:1;ctx.strokeStyle=selected?'#e0bd7f':dead?'#3a4848':'#4e6e66';ctx.stroke();ctx.shadowBlur=0;
+ for(const n of scene){if((n.x+n.w/2)*camera.scale+camera.x<0||(n.x-n.w/2)*camera.scale+camera.x>w||(n.y+n.h/2)*camera.scale+camera.y<0||(n.y-n.h/2)*camera.scale+camera.y>h)continue;const p=n.p,selected=p.id===state.controlledId,inspected=p.id===state.selectedId,dead=!alive(p),x=n.x-n.w/2,y=n.y-n.h/2;
+  ctx.shadowBlur=selected?17:0;ctx.shadowColor=selected?'#bd996d9f':'transparent';roundPath(ctx,x,y,n.w,n.h,12);ctx.fillStyle=dead?'#142126':'#1c3032';ctx.fill();ctx.lineWidth=selected?2.5:inspected?2:1;ctx.strokeStyle=selected?'#e0bd7f':inspected?'#a3d5c5':dead?'#3a4848':'#4e6e66';ctx.stroke();ctx.shadowBlur=0;
   const hu=hue(p.id);ctx.beginPath();ctx.fillStyle=dead?'#566463':`hsl(${hu},34%,39%)`;ctx.arc(n.x,y+25,16,0,Math.PI*2);ctx.fill();ctx.fillStyle=dead?'#c0cdbe':'#f8ebd9';ctx.font='600 13px Georgia,serif';ctx.textAlign='center';ctx.fillText(p.first.charAt(0)+p.last.charAt(0),n.x,y+29);
   ctx.fillStyle=dead?'#a3aaa5':'#f1f1e6';ctx.font='600 11px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText(ellipsis(p.first+' '+p.last,19),n.x,y+54,116);
   ctx.fillStyle=dead?'#788986':'#9bb3a8';ctx.font='10px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText(p.birthYear+' – '+(p.deathYear||'●'),n.x,y+70,115);
@@ -939,7 +942,22 @@ function drawGraph(){if(!state)return;const {w,h}=setCanvasSize();ctx.clearRect(
   }
  }
  ctx.restore();}
-function selectPerson(id){if(!get(id))return;state.selectedId=id;$('#profile-panel').scrollTop=0;renderProfile();if(scope==='focus'){needsFit=true;layoutGraph()}else{if(!scene.some(n=>n.p.id===id)){resetBranches();branchExpanded.set(id,BRANCH_BATCH);needsFit=true;layoutGraph();}else{renderBranchControls();drawGraph();}}if(currentTab==='people')renderPeople();saveSoon();}
+function selectPerson(id){
+ if(!get(id))return;
+ state.selectedId=id;$('#profile-panel').scrollTop=0;renderProfile();
+ // Inspection never moves the camera, rebuilds the focus circle, or changes the followed life.
+ renderBranchControls();drawGraph();
+ if(currentTab==='people')renderPeople();saveSoon();
+}
+function liveAs(id){
+ const p=get(id);
+ if(!p||!alive(p))return false;
+ if(state.pendingChoice||state.pendingSuccession){toast('Resolve the current family decision before changing lives.');return false;}
+ state.controlledId=id;state.selectedId=id;
+ renderProfile();renderCalendar();setTreeScope('focus');saveSoon();
+ toast('You are now living as '+p.first+'.');return true;
+}
+
 function renderPeople(){const search=$('#people-search').value.toLocaleLowerCase().trim();const list=persons().slice().sort((a,b)=>Number(alive(b))-Number(alive(a))||b.birthYear-a.birthYear);
  const filtered=list.filter(p=>(full(p)+' '+p.city+' '+(jobs[Math.min(p.jobLevel,5)]||'')).toLowerCase().includes(search));
  const attention=LEGACY_ATTENTION.counts(state);
@@ -1011,7 +1029,7 @@ function chooseSuccessor(id){
 
 function newWorldModal(){showModal(`<div class="eyebrow">THE BEGINNING OF EVERYTHING</div><h2>Begin a new legacy</h2><p>Start with one person, two parents, and a sibling. Every life that follows grows from this history.</p><label for="new-name">Founding character</label><input maxlength="50" id="new-name" class="field-input" value="Alex Morgan" placeholder="First and last name" /><label for="new-sex">Founding character</label><select id="new-sex" class="field-input"><option value="male">Male</option><option value="female">Female</option></select><label for="new-year">Starting year</label><input id="new-year" class="field-input" type="number" min="1800" max="2200" value="2026" /><div class="modal-warning">Creating a new world replaces the current active game. Export your family history first if you want to keep it.</div><div class="modal-actions"><button class="secondary" id="cancel-modal">Cancel</button><button class="primary" id="create-world">Create family →</button></div>`);
  $('#cancel-modal').onclick=closeModal;$('#create-world').onclick=()=>{let v=$('#new-name').value.trim(),y=Number($('#new-year').value);if(!v||!Number.isInteger(y)||y<1800||y>2200){toast('Enter a name and a starting year from 1800 to 2200.');return}newWorld(v,$('#new-sex').value,y);closeModal();saveSoon();setTab('tree');render();toast('A new family story has begun.');};}
-function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">LEGACY <strong>v1.27.0</strong> · Edge-to-edge display · Automatic update checks</p><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
+function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">LEGACY <strong>v1.28.0</strong> · Edge-to-edge display · Automatic update checks</p><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
  $('#realism-select').onchange=e=>{state.realism=e.target.value;saveSoon();toast(`Realism: ${state.realism}.`)};
  $('#export-game').onclick=exportGame;$('#import-game').onclick=()=>$('#import-file').click();$('#import-file').onchange=handleImport;
  $('#save-game').onclick=()=>saveGame().then(ok=>toast(ok?'Family saved on this device.':'Storage unavailable; export a backup instead.'));
@@ -1096,7 +1114,7 @@ function bind(){
  $('#timeline-speed').onchange=()=>timelineSpeed($('#timeline-speed').value);
  $('#zoom-in').onclick=()=>zoomTree(1.24);
  $('#zoom-out').onclick=()=>zoomTree(1/1.24);
- $('#selected-person').onclick=()=>showPersonStats(state.selectedId);
+ $('#selected-person').onclick=()=>showPersonStats(state.controlledId);
  $('#tree-fullscreen').onclick=()=>toggleTreeFullscreen();
  $('#center-person').onclick=centerPerson;
  $('#zoom-fit').onclick=()=>{fitScene();drawGraph()};
@@ -1191,5 +1209,5 @@ async function init(){state=await loadGame();if(!state){newWorld();await saveGam
  }}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
-window.LEGACY_TEST={getState:()=>state,addEvent,advance,advanceCalendar,renderCalendar,showCalendarDetails,renderTimeline,timelinePlay,timelinePause,timelineAdvance,timelineSpeed,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera}),fitScene,treeViewport,centerPerson,zoomTree,toggleTreeFullscreen,setTab,setTreeScope,expandBranch,collapseBranch,visiblePeople,openRevealMenu,openTimeControls,closeTimeControls};
+window.LEGACY_TEST={getState:()=>state,addEvent,advance,advanceCalendar,renderCalendar,showCalendarDetails,renderTimeline,timelinePlay,timelinePause,timelineAdvance,timelineSpeed,selectPerson,liveAs,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera}),fitScene,treeViewport,centerPerson,zoomTree,toggleTreeFullscreen,setTab,setTreeScope,expandBranch,collapseBranch,visiblePeople,openRevealMenu,openTimeControls,closeTimeControls};
 })();
