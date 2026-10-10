@@ -9,6 +9,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
    classList:(()=>{const values=new Set();return {add(...xs){xs.forEach(x=>values.add(x))},remove(...xs){xs.forEach(x=>values.delete(x))},toggle(x,force){const enable=force===undefined?!values.has(x):force;enable?values.add(x):values.delete(x);return enable},contains(x){return values.has(x)}}})(),
    getBoundingClientRect(){return {width:390,height:360,left:0,top:0}},
    getContext(){return ctx},
+   showModal(){this.open=true},close(){this.open=false},focus(){},
    addEventListener(type,callback){(this.handlers??={})[type]=callback},setPointerCapture(){},setAttribute(){},appendChild(){},remove(){},
    get clientWidth(){return 390}
   });return els.get(selector);
@@ -86,6 +87,25 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.match(node('#timeline-play').textContent,/Play/);
  sandbox.document.visibilityState='visible';
  api.timelineSpeed(15);
+ // Time controls are modal: opening pauses, dismissal never silently resumes.
+ assert.equal(api.timelinePlay(),true);
+ const dateBeforePopup=api.getState().calendar.date;
+ api.openTimeControls();
+ assert.equal(node('#time-popup').open,true);
+ assert.equal(fakeIntervals.size,0,'opening time settings pauses playback');
+ assert.equal(api.timelinePlay(),false,'background playback cannot start while popup is open');
+ assert.equal(api.getState().calendar.date,dateBeforePopup);
+ api.timelineSpeed(30);
+ assert.equal(api.getState().timeline.speedMinutes,30);
+ api.closeTimeControls();
+ assert.equal(node('#time-popup').open,false);
+ assert.equal(fakeIntervals.size,0,'dismissal leaves time paused');
+ api.openTimeControls();
+ node('#time-popup-play').onclick();
+ assert.equal(node('#time-popup').open,false);
+ assert.equal(fakeIntervals.size,1,'explicit Play & close resumes playback');
+ api.timelinePause();api.timelineSpeed(15);
+
  // Reload never persists a playing flag.
  assert.equal(state.timeline.playing,undefined);
  const dateAfterFast=state.calendar.date;

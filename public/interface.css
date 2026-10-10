@@ -119,3 +119,37 @@ body{position:fixed;inset:0;overflow:hidden}
  .app .canvas-caption{display:none}
  .app .canvas-tools{grid-template-columns:43px 43px;bottom:calc(var(--ui-bottom) + 178px)}
 }
+
+/* 1.25: compact playback dock and modal time controls. */
+.app .compact-time-dock{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:17px}
+.time-menu-trigger{display:flex;align-items:center;gap:10px;flex:1;min-width:0;min-height:44px;padding:3px 5px;border:0;background:none;color:var(--text);text-align:left}
+.time-menu-trigger>span:first-child{font-size:25px;color:var(--gold)}
+.time-menu-trigger>span:nth-child(2){display:flex;flex-direction:column;gap:4px;min-width:0}
+.time-menu-trigger strong{font-size:12px;font-weight:650}.time-menu-trigger small{font-size:10px;color:#a9bcac;white-space:nowrap}
+.time-menu-chevron{margin-left:auto;color:var(--gold)}
+.time-popup{position:fixed;inset:auto 0 0;margin:0 auto;padding:0;width:min(100%,510px);max-width:100%;max-height:calc(100dvh - env(safe-area-inset-top,0px) - 12px);border:1px solid #bbbf9666;border-bottom:0;border-radius:26px 26px 0 0;background:linear-gradient(150deg,#203b2e,#0e241d);color:#f3eee3;box-shadow:0 -15px 70px #0008;overflow:hidden}
+.time-popup[open]{display:flex;flex-direction:column}
+.time-popup::backdrop{background:#020d09ad;backdrop-filter:blur(5px)}
+.time-popup-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:23px 22px 16px;border-bottom:1px solid #c0c8a222;flex:none}
+.time-popup h2{font:400 27px/1.2 Georgia,serif;margin:6px 0 0}.time-popup-header button{width:44px;height:44px;flex:none;border:1px solid #b5c3a244;border-radius:50%;background:#a1b69210;color:#eee6d3;font-size:18px}
+.time-popup-scroll{overflow:auto;overscroll-behavior:contain;min-height:0;padding:0 22px 20px}
+.time-popup p{font-size:12px;line-height:1.55;color:#a9bdac;margin:16px 0}
+.time-popup-section{margin-top:16px}.time-popup-section>label{display:block;font-size:12px;color:#e0c797;margin-bottom:9px;font-weight:650}
+.time-popup #timeline-speed{width:100%;min-height:48px;padding:10px 12px;border:1px solid #a7be9744;border-radius:12px;background:#183529;color:#f2ead8;font-size:15px}
+.time-popup-status{display:block;font-size:11px;color:#aabdac;margin:12px 0}
+.time-popup .living-timeline-track{height:24px;min-height:24px}.time-popup .living-timeline-months span{font-size:9px;line-height:22px}
+.time-popup .simulation-bar{display:flex;flex-direction:column;align-items:stretch;gap:15px;padding:16px 0 0;margin-top:16px;min-height:0;background:none;border-top:1px solid #a3be902b}
+.time-popup .mode-section{display:flex;align-items:center;justify-content:space-between;gap:10px}.time-popup .mode-toggle{margin:0}.time-popup .mode-toggle button{min-height:44px;font-size:12px}.time-popup .simulation-middle{display:none}
+.time-popup .time-actions{display:flex;gap:8px}.time-popup .advance{flex:1;min-width:0;min-height:48px;font-size:18px}.time-popup .next-arrow{display:none}
+.time-popup-footer{display:flex;gap:10px;padding:14px 22px max(14px,env(safe-area-inset-bottom,0px));border-top:1px solid #c0c8a222;background:#132a21;flex:none}
+.time-popup-footer button{flex:1;min-height:48px;border:1px solid #afc19844;border-radius:12px;font-size:12px;font-weight:700;background:#263e30;color:#e4ecda}
+.time-popup-footer #time-popup-play{background:linear-gradient(135deg,#ebce95,#c7a269);color:#19301f;border-color:#e1c18b}
+@media(max-width:680px){
+ .app .selected-person{bottom:calc(var(--ui-bottom) + 139px)}
+ .app .canvas-caption{bottom:calc(var(--ui-bottom) + 213px)}
+ .app .canvas-tools{bottom:calc(var(--ui-bottom) + 148px)}
+ .app .attention-banner{bottom:calc(var(--ui-bottom) + 221px)}
+ .app.zen-tree .canvas-tools{bottom:calc(var(--ui-bottom) + 8px)}
+}
+@media(min-width:681px) and (min-height:541px){.time-popup{inset:0;margin:auto;border-bottom:1px solid #bbbf9666;border-radius:24px;height:fit-content;max-height:calc(100dvh - 48px)}}
+@media(max-height:540px){.time-popup{width:min(620px,100%);max-height:calc(100dvh - 12px)}.time-popup-header{padding:12px 18px}.time-popup-footer{padding-top:9px}.time-popup h2{font-size:23px}}
