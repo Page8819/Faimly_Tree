@@ -7,14 +7,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="LEGACY" />
-<meta name="legacy-build" content="1.25.0" />
+<meta name="legacy-build" content="1.26.0" />
 <meta name="description" content="A living family-tree simulation. Every generation has a story." />
-<link rel="manifest" href="./manifest.webmanifest?v=1.25.0" />
+<link rel="manifest" href="./manifest.webmanifest?v=1.26.0" />
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
 <link rel="icon" type="image/png" href="./icons/icon-192.png" />
 <title>LEGACY — A Living Family Tree</title>
-<link rel="stylesheet" href="./styles.css?v=1.25.0" />
-<link rel="stylesheet" href="./interface.css?v=1.25.0" />
+<link rel="stylesheet" href="./styles.css?v=1.26.0" />
+<link rel="stylesheet" href="./interface.css?v=1.26.0" />
 </head>
 <body>
 <div id="app" class="app immersive-tree">
@@ -24,15 +24,12 @@
     <div class="header-actions"><button class="icon-button" id="new-world-btn" title="New family" aria-label="Create a new family">＋</button><button class="icon-button" id="menu-btn" title="Save, load and settings" aria-label="Open settings">☰</button></div>
   </header>
   <section id="stats" class="stats" aria-label="Family statistics"></section>
-  <div class="main-topbar"><div class="view-tabs" role="tablist" aria-label="Main view"><button class="tab active" data-tab="tree" role="tab" aria-selected="true"><span aria-hidden="true">♧</span>Family tree</button><button class="tab" data-tab="people" role="tab" aria-selected="false"><span aria-hidden="true">♙</span>People</button><button class="tab" data-tab="history" role="tab" aria-selected="false"><span aria-hidden="true">◷</span>History</button></div><div id="world-title" class="world-title">THE MORGAN FAMILY</div></div>
+  <div id="world-title" hidden>THE MORGAN FAMILY</div>
+  <button id="reveal-menu" class="reveal-menu" type="button" aria-haspopup="dialog" aria-controls="time-popup" aria-expanded="false">Menu <span aria-hidden="true">⌃</span></button>
   <section id="calendar-strip" class="calendar-strip" aria-label="World calendar and time controls">
     <button type="button" id="calendar-detail" class="calendar-date-button" aria-label="Open calendar and local work schedule"><span class="calendar-primary" id="calendar-date">January • 1st • 2026</span><small id="calendar-weekday">Thursday · Day 1 of 365</small></button>
 
   </section>
-  <div class="time-dock compact-time-dock">
-    <button id="time-menu" type="button" class="time-menu-trigger" aria-haspopup="dialog" aria-controls="time-popup"><span aria-hidden="true">◷</span><span><strong>Time &amp; control</strong><small id="time-summary">Paused · 1 year / 15 min</small></span><span class="time-menu-chevron" aria-hidden="true">⌃</span></button>
-    <button id="timeline-play" class="timeline-play" type="button" aria-label="Play living timeline">▶ Play</button>
-  </div>
   <main class="workspace">
     <section class="workspace-primary" id="primary-panel">
       <div id="tree-view" class="tree-view">
@@ -56,7 +53,10 @@
 
 </div>
 <dialog id="time-popup" class="time-popup" aria-labelledby="time-popup-title" aria-describedby="time-popup-note">
-  <div class="time-popup-header"><div><div class="eyebrow">THE PASSAGE OF TIME</div><h2 id="time-popup-title">Time &amp; control</h2></div><button id="time-popup-close" type="button" aria-label="Close time controls" autofocus>✕</button></div>
+  <div class="sheet-grip" aria-hidden="true"></div>
+  <div class="time-popup-header"><div><div class="eyebrow">LEGACY</div><h2 id="time-popup-title">Time &amp; control</h2></div><button id="time-popup-close" type="button" aria-label="Close time controls" autofocus>✕</button></div>
+  <nav class="reveal-options" aria-label="Main navigation"><div class="view-tabs" role="group" aria-label="Main view"><button class="tab active" data-tab="tree" aria-pressed="true"><span aria-hidden="true">♧</span>Tree</button><button class="tab" data-tab="people" aria-pressed="false"><span aria-hidden="true">♙</span>People</button><button class="tab" data-tab="history" aria-pressed="false"><span aria-hidden="true">◷</span>History</button><button id="time-menu" type="button" aria-controls="time-popup" aria-expanded="false"><span aria-hidden="true">◷</span>Time</button></div></nav>
+  <div class="reveal-status"><small id="time-summary"></small><button id="timeline-play" type="button">▶ Play</button></div>
   <div class="time-popup-scroll">
     <p id="time-popup-note">Time pauses while you make changes. Choose Play &amp; close when you’re ready.</p>
     <section class="time-popup-section"><label for="timeline-speed">One game year takes</label><select id="timeline-speed" aria-label="Real time per in-game year">
@@ -83,23 +83,23 @@
 </dialog>
 <div id="modal-backdrop" class="modal-backdrop hidden"><div class="modal" id="modal-content" role="dialog" aria-modal="true"></div></div>
 <div id="toast" class="toast hidden" role="status"></div>
-<script src="./careers.js?v=1.25.0"></script>
-<script src="./education.js?v=1.25.0"></script>
-<script src="./medicine.js?v=1.25.0"></script>
-<script src="./human.js?v=1.25.0"></script>
-<script src="./economy.js?v=1.25.0"></script>
-<script src="./consequences.js?v=1.25.0"></script>
-<script src="./events.js?v=1.25.0"></script>
-<script src="./succession.js?v=1.25.0"></script>
-<script src="./relationships.js?v=1.25.0"></script>
-<script src="./living-context.js?v=1.25.0"></script>
-<script src="./living-psychology.js?v=1.25.0"></script>
-<script src="./living-decisions.js?v=1.25.0"></script>
-<script src="./living-storylines.js?v=1.25.0"></script>
-<script src="./living-impact.js?v=1.25.0"></script>
-<script src="./attention.js?v=1.25.0"></script>
-<script src="./calendar.js?v=1.25.0"></script>
-<script src="./timeline.js?v=1.25.0"></script>
-<script src="./app.js?v=1.25.0"></script>
+<script src="./careers.js?v=1.26.0"></script>
+<script src="./education.js?v=1.26.0"></script>
+<script src="./medicine.js?v=1.26.0"></script>
+<script src="./human.js?v=1.26.0"></script>
+<script src="./economy.js?v=1.26.0"></script>
+<script src="./consequences.js?v=1.26.0"></script>
+<script src="./events.js?v=1.26.0"></script>
+<script src="./succession.js?v=1.26.0"></script>
+<script src="./relationships.js?v=1.26.0"></script>
+<script src="./living-context.js?v=1.26.0"></script>
+<script src="./living-psychology.js?v=1.26.0"></script>
+<script src="./living-decisions.js?v=1.26.0"></script>
+<script src="./living-storylines.js?v=1.26.0"></script>
+<script src="./living-impact.js?v=1.26.0"></script>
+<script src="./attention.js?v=1.26.0"></script>
+<script src="./calendar.js?v=1.26.0"></script>
+<script src="./timeline.js?v=1.26.0"></script>
+<script src="./app.js?v=1.26.0"></script>
 </body>
 </html>

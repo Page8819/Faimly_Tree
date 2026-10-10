@@ -842,11 +842,11 @@ function syncAppViewport(){
 }
 function treeViewport(){
  const r=canvas.getBoundingClientRect(),zen=$('#app').classList.contains('zen-tree');
- let top=zen?28:Math.min(205,r.height*.28),bottom=zen?76:Math.min(220,r.height*.3),left=24,right=24;
+ let top=zen?28:Math.min(205,r.height*.28),bottom=zen?76:Math.min(145,r.height*.22),left=24,right=24;
  if(!zen&&r.width>680&&r.height<540){top=135;bottom=95;}
  if(!zen&&typeof window.getComputedStyle==='function'){
   const heading=$('.tree-view .panel-heading').getBoundingClientRect();
-  const dock=$('.time-dock').getBoundingClientRect();
+  const dock=$('#reveal-menu').getBoundingClientRect();
   if(Number.isFinite(heading.bottom))top=heading.bottom-r.top+18;
   if(dock.top>r.top&&dock.left<r.right&&dock.right>r.left)bottom=r.bottom-dock.top+18;
   if(r.width<=680){const selected=$('#selected-person').getBoundingClientRect();if(selected.top>r.top)bottom=Math.max(bottom,r.bottom-selected.top+18);}
@@ -900,7 +900,7 @@ function renderHistory(){const events=state.events.slice().sort((a,b)=>b.year-a.
  $('#history-list').innerHTML=events.map(e=>{let head='';if(e.year!==oldYear){oldYear=e.year;head=`<div class="history-year">${e.year}</div>`}const name=e.personIds.map(get).filter(Boolean)[0];return `${head}<div class="history-item"><span class="history-marker">${({birth:'✦',death:'◆',relationship:'♥',adoption:'✦',move:'⌁',career:'↑',education:'◈',inheritance:'◇',family:'♡',milestone:'✧',choice:'⚖',succession:'♜'}[e.type]||'●')}</span><button data-event-person="${name?.id||''}"><div class="history-name">${esc(e.type.toUpperCase())}</div>${esc(e.message)}</button></div>`}).join('')+(state.events.length>450?'<div class="empty-note">Showing the latest 450 events. All events remain in the saved game and exported backup.</div>':'');
  $$('#history-list [data-event-person]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.eventPerson)showPersonStats(b.dataset.eventPerson)}));
 }
-function setTab(tab){currentTab=tab;closeTimeControls();$('#app').classList.remove('zen-tree');$('#tree-fullscreen').setAttribute('aria-pressed','false');$('#tree-fullscreen').setAttribute('aria-label','Hide controls for a full-screen tree');$('#tree-fullscreen').textContent='⛶';$('#app').classList.toggle('immersive-tree',tab==='tree');$$('.tab').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);b.setAttribute('aria-selected',String(b.dataset.tab===tab))});
+function setTab(tab){currentTab=tab;closeTimeControls();$('#app').classList.remove('zen-tree');$('#tree-fullscreen').setAttribute('aria-pressed','false');$('#tree-fullscreen').setAttribute('aria-label','Hide controls for a full-screen tree');$('#tree-fullscreen').textContent='⛶';$('#app').classList.toggle('immersive-tree',tab==='tree');$$('.tab').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);b.setAttribute('aria-pressed',String(b.dataset.tab===tab))});
  $('#tree-view').classList.toggle('hidden',tab!=='tree');$('#people-view').classList.toggle('hidden',tab!=='people');$('#history-view').classList.toggle('hidden',tab!=='history');
  if(tab==='tree'){needsFit=true;requestAnimationFrame(()=>layoutGraph())}if(tab==='people')renderPeople();if(tab==='history')renderHistory();
 }
@@ -961,7 +961,7 @@ function chooseSuccessor(id){
 
 function newWorldModal(){showModal(`<div class="eyebrow">THE BEGINNING OF EVERYTHING</div><h2>Begin a new legacy</h2><p>Start with one person, two parents, and a sibling. Every life that follows grows from this history.</p><label for="new-name">Founding character</label><input maxlength="50" id="new-name" class="field-input" value="Alex Morgan" placeholder="First and last name" /><label for="new-sex">Founding character</label><select id="new-sex" class="field-input"><option value="male">Male</option><option value="female">Female</option></select><label for="new-year">Starting year</label><input id="new-year" class="field-input" type="number" min="1800" max="2200" value="2026" /><div class="modal-warning">Creating a new world replaces the current active game. Export your family history first if you want to keep it.</div><div class="modal-actions"><button class="secondary" id="cancel-modal">Cancel</button><button class="primary" id="create-world">Create family →</button></div>`);
  $('#cancel-modal').onclick=closeModal;$('#create-world').onclick=()=>{let v=$('#new-name').value.trim(),y=Number($('#new-year').value);if(!v||!Number.isInteger(y)||y<1800||y>2200){toast('Enter a name and a starting year from 1800 to 2200.');return}newWorld(v,$('#new-sex').value,y);closeModal();saveSoon();setTab('tree');render();toast('A new family story has begun.');};}
-function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">LEGACY <strong>v1.25.0</strong> · Edge-to-edge display · Automatic update checks</p><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
+function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">LEGACY <strong>v1.26.0</strong> · Edge-to-edge display · Automatic update checks</p><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
  $('#realism-select').onchange=e=>{state.realism=e.target.value;saveSoon();toast(`Realism: ${state.realism}.`)};
  $('#export-game').onclick=exportGame;$('#import-game').onclick=()=>$('#import-file').click();$('#import-file').onchange=handleImport;
  $('#save-game').onclick=()=>saveGame().then(ok=>toast(ok?'Family saved on this device.':'Storage unavailable; export a backup instead.'));
@@ -975,19 +975,48 @@ function storageSet(){try{localStorage.setItem('legacy-snapshot-v1',JSON.stringi
 async function loadGame(){db=await openDB();if(db){try{const game=await new Promise((resolve,reject)=>{const t=db.transaction('worlds','readonly').objectStore('worlds').get('active');t.onsuccess=()=>resolve(t.result);t.onerror=()=>reject(t.error)});if(validImport(game))return game}catch(e){console.warn('IndexedDB read unavailable',e)}}const local=storageGet();return validImport(local)?local:null}
 async function saveGame(){if(!state)return false;let success=false;if(db){try{success=await new Promise(resolve=>{const tx=db.transaction('worlds','readwrite');tx.objectStore('worlds').put(state,'active');tx.oncomplete=()=>resolve(true);tx.onerror=()=>resolve(false);tx.onabort=()=>resolve(false)})}catch(e){console.warn('IndexedDB write unavailable',e)}}if(!success)success=storageSet();return success}
 function saveSoon(){clearTimeout(saveHandle);saveHandle=setTimeout(()=>{saveGame().then(ok=>{if(!ok)toast('Could not auto-save. Export a backup from the menu.')})},450)}
+function openRevealMenu(){
+ if(!state||state.pendingChoice||state.pendingSuccession)return;
+ const popup=$('#time-popup');
+ popup.classList.add('menu-only');
+ $('#time-popup-title').textContent='Explore your dynasty';
+ popup.setAttribute('aria-describedby','time-summary');
+ $('#time-popup-close').setAttribute('aria-label','Close menu');
+ if(!popup.open)popup.showModal();
+ $('#reveal-menu').setAttribute('aria-expanded','true');
+}
 function openTimeControls(){
  if(!state||state.pendingChoice||state.pendingSuccession)return;
  timelinePause();renderCalendar();
  const popup=$('#time-popup');
+ popup.classList.remove('menu-only');
+ $('#time-popup-title').textContent='Time & control';
+ popup.setAttribute('aria-describedby','time-popup-note');
+ $('#time-popup-close').setAttribute('aria-label','Close time controls');
  if(!popup.open)popup.showModal();
+ $('#reveal-menu').setAttribute('aria-expanded','true');
  $('#time-menu').setAttribute('aria-expanded','true');
+ $('#time-popup-close').focus?.();
 }
 function closeTimeControls(){
  const popup=$('#time-popup');
- if(popup.open){popup.close();$('#time-menu').focus?.();}
+ if(popup.open){popup.close();$('#reveal-menu').focus?.();}
  $('#time-menu').setAttribute('aria-expanded','false');
+ $('#reveal-menu').setAttribute('aria-expanded','false');
 }
 function bind(){
+ $('#reveal-menu').onclick=openRevealMenu;
+ // Start swipes only on the pill or sheet header, never on the tree or form fields.
+ function swipe(el,onUp,onDown){
+  let start=null;
+  el.addEventListener('pointerdown',e=>{if(e.target!==el&&e.target?.closest?.('button'))return;start={x:e.clientX,y:e.clientY,id:e.pointerId};el.setPointerCapture?.(e.pointerId);});
+  el.addEventListener('pointerup',e=>{if(!start||start.id!==e.pointerId)return;const dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;if(Math.abs(dy)>32&&Math.abs(dy)>Math.abs(dx)*1.3){if(dy<0)onUp?.();else onDown?.();}});
+  el.addEventListener('pointercancel',()=>{start=null;});
+ }
+ swipe($('#reveal-menu'),openRevealMenu,null);
+ swipe($('.sheet-grip'),null,closeTimeControls);
+ swipe($('.time-popup-header'),null,closeTimeControls);
+
  $('#time-menu').onclick=openTimeControls;
  $('#time-popup-close').onclick=closeTimeControls;
  $('#time-popup-done').onclick=closeTimeControls;
@@ -1010,7 +1039,7 @@ function bind(){
  $('#advance-day').onclick=()=>{closeTimeControls();advanceCalendar('day',1);};
  $('#advance-month').onclick=()=>{closeTimeControls();advanceCalendar('month',1);};
  $('#calendar-detail').onclick=showCalendarDetails;
- $('#timeline-play').onclick=()=>timelinePlay();
+ $('#timeline-play').onclick=()=>{if(timelineRunning)timelinePause();else{closeTimeControls();timelinePlay();}};
  $('#timeline-speed').onchange=()=>timelineSpeed($('#timeline-speed').value);
  $('#zoom-in').onclick=()=>zoomTree(1.24);
  $('#zoom-out').onclick=()=>zoomTree(1/1.24);
@@ -1109,5 +1138,5 @@ async function init(){state=await loadGame();if(!state){newWorld();await saveGam
  }}
 init().catch(e=>{console.error(e);$('#tree-subhead').textContent='Unable to start the simulation. Please reload.'});
 // Integration-test API (not required for gameplay).
-window.LEGACY_TEST={getState:()=>state,addEvent,advance,advanceCalendar,renderCalendar,showCalendarDetails,renderTimeline,timelinePlay,timelinePause,timelineAdvance,timelineSpeed,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera}),fitScene,treeViewport,centerPerson,zoomTree,toggleTreeFullscreen,setTab,openTimeControls,closeTimeControls};
+window.LEGACY_TEST={getState:()=>state,addEvent,advance,advanceCalendar,renderCalendar,showCalendarDetails,renderTimeline,timelinePlay,timelinePause,timelineAdvance,timelineSpeed,selectPerson,decide,newWorld,saveGame,loadGame,render,validImport,maybeLifeChoice,resolveLifeChoice,showLifeChoice,showStoryDetails,showSuccession,chooseSuccessor,showPersonStats,renderAttention,showAttentionInbox,reviewAttentionPerson,getScene:()=>scene,getCamera:()=>({...camera}),fitScene,treeViewport,centerPerson,zoomTree,toggleTreeFullscreen,setTab,openRevealMenu,openTimeControls,closeTimeControls};
 })();

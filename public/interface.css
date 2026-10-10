@@ -153,3 +153,31 @@ body{position:fixed;inset:0;overflow:hidden}
 }
 @media(min-width:681px) and (min-height:541px){.time-popup{inset:0;margin:auto;border-bottom:1px solid #bbbf9666;border-radius:24px;height:fit-content;max-height:calc(100dvh - 48px)}}
 @media(max-height:540px){.time-popup{width:min(620px,100%);max-height:calc(100dvh - 12px)}.time-popup-header{padding:12px 18px}.time-popup-footer{padding-top:9px}.time-popup h2{font-size:23px}}
+
+/* 1.26: one reveal sheet, with no persistent navigation or playback bars. */
+.app .reveal-menu{position:absolute;z-index:20;left:50%;transform:translateX(-50%);bottom:max(8px,env(safe-area-inset-bottom,0px));display:flex;align-items:center;justify-content:center;gap:12px;min-width:104px;min-height:44px;padding:8px 19px;border:1px solid #b8c49b55;border-radius:30px;background:#193229ed;color:#e5cd9c;font:600 12px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 4px 20px #0004;backdrop-filter:blur(18px);touch-action:none}
+.app.zen-tree .reveal-menu{display:none}
+.app .selected-person{bottom:calc(max(8px,env(safe-area-inset-bottom,0px)) + 58px)}
+.app .canvas-caption{bottom:calc(max(8px,env(safe-area-inset-bottom,0px)) + 132px)}
+.app .canvas-tools{bottom:calc(max(8px,env(safe-area-inset-bottom,0px)) + 64px)}
+.app .attention-banner{bottom:calc(max(8px,env(safe-area-inset-bottom,0px)) + 153px)}
+.app:not(.immersive-tree) .workspace{bottom:calc(max(8px,env(safe-area-inset-bottom,0px)) + 56px)}
+.time-popup{inset:auto 0 0;margin:0 auto;height:auto;border-radius:26px 26px 0 0;border-bottom:0;max-height:calc(var(--legacy-viewport-height,100dvh) - env(safe-area-inset-top,0px) - 12px)}
+.time-popup[open]{animation:reveal-rise .22s ease-out}
+.sheet-grip{flex:none;height:24px;display:flex;align-items:center;justify-content:center;touch-action:none}
+.sheet-grip:after{content:'';width:36px;height:4px;background:#9cad99;border-radius:6px}
+.time-popup .time-popup-header{padding-top:0;touch-action:none}
+.reveal-options{padding:14px 18px max(18px,env(safe-area-inset-bottom,0px))}
+.reveal-options .view-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;background:none;border:0;padding:0}
+.reveal-options button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-height:64px;border:1px solid transparent;border-radius:15px;background:transparent;color:#a8bbad;font:500 12px/1.2 -apple-system,BlinkMacSystemFont,sans-serif}
+.reveal-options button span{font-size:24px;line-height:1}
+.reveal-options button.active{background:#dac08b1c;border-color:#d7bf8050;color:#efd6a4}
+.reveal-status{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 22px max(18px,env(safe-area-inset-bottom,0px));color:#a8bbad}
+.reveal-status small{font-size:11px}.reveal-status button{min-height:44px;padding:9px 18px;border:1px solid #cfb67b55;border-radius:12px;background:#dec08a;color:#163024;font-weight:700}
+.time-popup:not(.menu-only) .reveal-options,.time-popup:not(.menu-only) .reveal-status{display:none}
+.time-popup.menu-only .time-popup-scroll,.time-popup.menu-only .time-popup-footer{display:none}
+.time-popup.menu-only .reveal-options{padding-bottom:12px}
+.time-popup.menu-only h2{font-size:23px}
+button:focus-visible{outline:2px solid #f0ce8e;outline-offset:3px}
+@keyframes reveal-rise{from{transform:translateY(32px);opacity:0}to{transform:translateY(0);opacity:1}}
+@media(prefers-reduced-motion:reduce){.time-popup[open]{animation:none}}

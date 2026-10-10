@@ -106,6 +106,29 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.equal(fakeIntervals.size,1,'explicit Play & close resumes playback');
  api.timelinePause();api.timelineSpeed(15);
 
+ // Reveal navigation preserves playback; Time expands the same modal and pauses it.
+ assert.equal(api.timelinePlay(),true);
+ node('#reveal-menu').onclick();
+ assert.equal(node('#time-popup').open,true);
+ assert.equal(node('#time-popup').classList.contains('menu-only'),true);
+ assert.equal(fakeIntervals.size,1,'navigation does not pause a running world');
+ node('#time-menu').onclick();
+ assert.equal(node('#time-popup').classList.contains('menu-only'),false);
+ assert.equal(fakeIntervals.size,0,'Time expands and pauses playback');
+ api.closeTimeControls();
+ api.openRevealMenu();api.setTab('people');
+ assert.equal(node('#time-popup').open,false,'choosing a view dismisses navigation');
+ api.setTab('tree');
+ node('#reveal-menu').handlers.pointerdown({clientX:20,clientY:100,pointerId:1});
+ node('#reveal-menu').handlers.pointerup({clientX:22,clientY:40,pointerId:1});
+ assert.equal(node('#time-popup').open,true,'swipe up reveals navigation');
+ node('.sheet-grip').handlers.pointerdown({clientX:20,clientY:40,pointerId:2});
+ node('.sheet-grip').handlers.pointerup({clientX:22,clientY:100,pointerId:2});
+ assert.equal(node('#time-popup').open,false,'swipe down dismisses sheet');
+ api.openRevealMenu();
+ node('#time-popup').handlers.cancel({preventDefault(){}});
+ assert.equal(node('#time-popup').open,false,'Escape dismisses sheet');
+
  // Reload never persists a playing flag.
  assert.equal(state.timeline.playing,undefined);
  const dateAfterFast=state.calendar.date;
