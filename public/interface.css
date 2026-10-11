@@ -188,3 +188,10 @@ button:focus-visible{outline:2px solid #f0ce8e;outline-offset:3px}
 .branch-controls button:disabled{opacity:.45}.app.branch-view .canvas-caption{display:none}.app.branch-view .attention-banner{bottom:calc(max(8px,env(safe-area-inset-bottom,0px)) + 230px)}
 .app.zen-tree .branch-controls{display:none!important}
 @media(max-width:680px){.app .scope{padding:7px 9px}.app.branch-view .canvas-tools{bottom:calc(max(8px,env(safe-area-inset-bottom,0px)) + 64px)}}
+
+/* Explicit partnerships and followed-character relationship feelings. */
+.relationship-card{margin:12px 0;padding:14px;border:1px solid #d8b77b55;border-radius:18px;background:linear-gradient(135deg,#243c32,#10221e);color:#f2e9d5;}
+.relationship-card>small{display:block;color:#a4b8ac;font-size:11px;line-height:1.5;margin-top:8px;}
+.relationship-partner{color:#e0bd7f;font-size:13px;font-weight:600;margin:8px 0;}
+.relationship-feeling{display:flex;align-items:center;gap:10px;margin-top:10px;color:var(--feeling);}
+.relationship-feeling>span{font-size:28px;}.relationship-feeling>div{flex:1;min-width:0;}.relationship-feeling strong,.relationship-feeling small{display:block;font-size:12px;line-height:1.5;}.relationship-feeling meter{width:70px;height:10px;accent-color:var(--feeling);}

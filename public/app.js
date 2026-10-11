@@ -587,6 +587,14 @@ function advanceCalendar(unit,amount=1,quiet=false){
  finally{busy=false;}
 }
 
+function relationshipCard(p){
+ const target=get(state.controlledId);if(!target||!p)return '';
+ const q=partner(p);
+ const partnerLine=q?'<div class="relationship-partner">♥ Partner · '+esc(full(q))+'</div>':'<div class="relationship-partner">'+(p.formerPartners?.length?'No current partner · Past partners in Family':'No current partner')+'</div>';
+ if(p.id===target.id)return '<section class="relationship-card">'+partnerLine+'<small>Following '+esc(full(target))+' · Inspect someone to see your relationship.</small></section>';
+ const row=(a,b)=>{const r=LEGACY_RELATIONSHIPS.happiness(a,b);return '<div class="relationship-feeling" style="--feeling:'+r.color+'"><span aria-hidden="true">'+r.icon+'</span><div><strong>'+esc(a.first)+' → '+esc(b.first)+'</strong><small>'+r.label+(r.score===null?'':' · '+r.score+'/100')+(!alive(a)||!alive(b)?' · Remembered':'')+'</small></div>'+(r.score===null?'':'<meter min="0" max="100" value="'+r.score+'" aria-label="'+esc(a.first+' happiness with '+b.first)+'"></meter>')+'</div>'};
+ return '<section class="relationship-card"><div class="eyebrow">RELATIONSHIP WITH '+esc(target.first.toUpperCase())+'</div>'+partnerLine+row(p,target)+row(target,p)+'<small>Based on trust, closeness and conflict. Changes with shared experiences.</small></section>';
+}
 function renderProfile(){const p=get(state.selectedId);if(!p)return;
  const target=get(state.controlledId);
  if(target){
@@ -606,7 +614,7 @@ function renderProfile(){const p=get(state.selectedId);if(!p)return;
  $('#profile-content').innerHTML=`
  <div class="profile-head"><div class="profile-kicker"><span>PERSON / ${esc(p.id.toUpperCase())}${p.id===state.controlledId&&state.mode==='individual'?' · PLAYING':''}</span><span>${esc(yearSpan(p))}</span></div>
  <div class="profile-card"><div class="portrait" style="${gradient(p)}"><span>${esc(initials(p))}</span></div><div><div class="profile-name">${esc(full(p))}</div><div class="profile-meta">${ages(p)} · Generation ${p.gen+1}<br>${esc(p.city)}</div><span class="pill ${alive(p)?'':'dead'}">${alive(p)?'● LIVING':'◆ REMEMBERED'}</span></div></div>
- <p class="profile-summary">${summary}</p></div>
+ <p class="profile-summary">${summary}</p></div>${relationshipCard(p)}
  <div class="profile-stats"><div class="profile-stat"><small>Occupation</small><strong>${esc(job)}</strong></div><div class="profile-stat"><small>Personal wealth</small><strong>${money(p.wealth)}</strong></div><div class="profile-stat"><small>Education</small><strong>${esc(education)}</strong></div><div class="profile-stat"><small>Children</small><strong>${children.length} ${children.length===1?'child':'children'}</strong></div></div>
  <div class="panel-block"><div class="block-title">Life path & legacy</div><div class="identity">${esc(LEGACY_CONSEQUENCES.describe(p))}</div></div>
   <div class="panel-block"><div class="block-title">Family connections <span class="block-sub">${children.length+parents.length+adopters.length+(q?1:0)} direct ties</span></div><div class="relation-row">${distinctRel(parents,'parent')}${distinctRel(adopters,'adoptive parent')}${q?distinctRel([q],'partner'):''}${distinctRel(children,'child')}${!parents.length&&!adopters.length&&!q&&!children.length?'<span class="empty-note">No direct relatives recorded yet.</span>':''}</div></div>
@@ -738,7 +746,7 @@ function showPersonStats(id,tab='overview',page=0){
  }
  const tabs=[['overview','Overview'],['health','Health'],['education','School'],['career','Jobs'],['stats','Stats'],['family','Family'],['stories','Stories'],['actions','Actions'],['history','History']];
  const tabNav=tabs.map(([key,name])=>'<button role="tab" data-person-tab="'+key+'" aria-selected="'+(tab===key)+'" class="'+(tab===key?'active':'')+'">'+name+'</button>').join('');
- showModal('<div class="person-sheet person-sheet-compact"><div class="person-sheet-top"><div><div class="eyebrow">FAMILY RECORD · '+esc(p.id.toUpperCase())+' · '+esc(yearSpan(p))+'</div><div class="person-sheet-topname">'+esc(full(p))+'</div></div><button id="person-sheet-close" class="person-sheet-close" type="button" aria-label="Close person details">✕</button></div><nav class="person-sheet-tabs" role="tablist" aria-label="Character details">'+tabNav+'</nav><div class="person-sheet-screen" role="tabpanel" aria-label="'+esc(tab)+'">'+body+'</div></div>');
+ showModal('<div class="person-sheet person-sheet-compact"><div class="person-sheet-top"><div><div class="eyebrow">FAMILY RECORD · '+esc(p.id.toUpperCase())+' · '+esc(yearSpan(p))+'</div><div class="person-sheet-topname">'+esc(full(p))+'</div></div><button id="person-sheet-close" class="person-sheet-close" type="button" aria-label="Close person details">✕</button></div><nav class="person-sheet-tabs" role="tablist" aria-label="Character details">'+tabNav+'</nav><div class="person-sheet-screen" role="tabpanel" aria-label="'+esc(tab)+'">'+relationshipCard(p)+body+'</div></div>');
  $('#modal-backdrop').classList.add('person-profile-backdrop');
  $('#modal-content').classList.add('person-profile-dialog');
  $('#person-sheet-close').onclick=closeModal;
@@ -846,7 +854,7 @@ function renderBranchControls(){
  $('#branch-collapse').disabled=!branchExpanded.has(state.selectedId);
 }
 function layoutGraph(){const visible=visiblePeople();const groups=new Map();for(const p of visible){if(!groups.has(p.gen))groups.set(p.gen,[]);groups.get(p.gen).push(p)}
- const gens=[...groups.keys()].sort((a,b)=>a-b);const placements=new Map();const xgap=148,ygap=129;
+ const gens=[...groups.keys()].sort((a,b)=>a-b);const placements=new Map();const xgap=172,ygap=166;
  // A compact layered genealogy layout. Couples are placed near their shared descendants.
  for(const g of gens){const group=groups.get(g);group.sort((a,b)=>{
   const pa=a.parentIds.map(x=>placements.get(x)).filter(Boolean),pb=b.parentIds.map(x=>placements.get(x)).filter(Boolean);
@@ -855,8 +863,11 @@ function layoutGraph(){const visible=visiblePeople();const groups=new Map();for(
   if(av!==null&&bv===null)return -1;if(av===null&&bv!==null)return 1;
   return a.birthYear-b.birthYear||Number(a.id.slice(1))-Number(b.id.slice(1));
  });
- const w=(group.length-1)*xgap;
- group.forEach((p,i)=>placements.set(p.id,{p,x:i*xgap-w/2,y:(g-gens[0])*ygap}));
+ const ordered=[],seen=new Set(),byId=new Map(group.map(p=>[p.id,p]));
+ for(const p of group){if(seen.has(p.id))continue;ordered.push(p);seen.add(p.id);const q=byId.get(p.partnerId);if(q&&q.partnerId===p.id&&!seen.has(q.id)){ordered.push(q);seen.add(q.id);}}
+ let cursor=0;ordered.forEach((p,i)=>{if(i)cursor+=ordered[i-1].partnerId===p.id?164:210;placements.set(p.id,{p,x:cursor,y:(g-gens[0])*ygap});});
+ for(const p of ordered)placements.get(p.id).x-=cursor/2;
+ groups.set(g,ordered);
  }
  // Realign each generation relative to the preceding one while preserving spacing.
  for(let repeat=0;repeat<2;repeat++)for(const g of gens.slice(1)){
@@ -866,7 +877,7 @@ function layoutGraph(){const visible=visiblePeople();const groups=new Map();for(
    const delta=Math.max(-220,Math.min(220,mid-current));for(const p of items)placements.get(p.id).x+=delta;
   }
  }
- scene=[...placements.values()].map(v=>({...v,w:126,h:87}));
+ scene=[...placements.values()].map(v=>({...v,w:126,h:108}));
  const ids=new Set(scene.map(n=>n.p.id));sceneEdges=[];
  for(const n of scene){const p=n.p;
   for(const parentId of [...p.parentIds,...p.adoptiveParentIds]){const pa=placements.get(parentId);if(pa)sceneEdges.push({a:pa,b:n,kind:p.adoptiveParentIds.includes(parentId)?'adopt':'parent'});}
@@ -920,7 +931,8 @@ function roundPath(c,x,y,w,h,r){r=Math.min(r,w/2,h/2);c.beginPath();c.moveTo(x+r
 function ellipsis(s,max=19){return s.length>max?s.slice(0,max-1)+'…':s}
 function drawGraph(){if(!state)return;const {w,h}=setCanvasSize();ctx.clearRect(0,0,w,h);ctx.save();ctx.translate(camera.x,camera.y);ctx.scale(camera.scale,camera.scale);
  for(const e of sceneEdges){const {a,b,kind}=e;ctx.beginPath();ctx.lineWidth=kind==='partner'?1.3:1.8;ctx.strokeStyle=kind==='partner'?'#a4845288':kind==='adopt'?'#80adbc95':'#648b7b99';ctx.setLineDash(kind==='parent'?[]:kind==='adopt'?[4,4]:[3,6]);
-  if(kind==='partner'){ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y)}else{ctx.moveTo(a.x,a.y+44);const cy=(a.y+b.y)/2;ctx.bezierCurveTo(a.x,cy,b.x,cy,b.x,b.y-44)}ctx.stroke();ctx.setLineDash([]);
+  if(kind==='partner'){ctx.setLineDash([]);ctx.strokeStyle='#d8b77b';ctx.lineWidth=2;ctx.moveTo(a.x+Math.sign(b.x-a.x)*63,a.y);ctx.lineTo(b.x-Math.sign(b.x-a.x)*63,b.y)}else{ctx.moveTo(a.x,a.y+54);const cy=(a.y+b.y)/2;ctx.bezierCurveTo(a.x,cy,b.x,cy,b.x,b.y-54)}ctx.stroke();ctx.setLineDash([]);
+  if(kind==='partner'){const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;ctx.fillStyle='#102721';ctx.beginPath();ctx.arc(mx,my,12,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e0bd7f';ctx.textAlign='center';ctx.font='15px Georgia';ctx.fillText('♥',mx,my+5);}
  }
  const attentionCounts=treeAttention,activeCount=treeStories;
  for(const n of scene){if((n.x+n.w/2)*camera.scale+camera.x<0||(n.x-n.w/2)*camera.scale+camera.x>w||(n.y+n.h/2)*camera.scale+camera.y<0||(n.y-n.h/2)*camera.scale+camera.y>h)continue;const p=n.p,selected=p.id===state.controlledId,inspected=p.id===state.selectedId,dead=!alive(p),x=n.x-n.w/2,y=n.y-n.h/2;
@@ -928,6 +940,10 @@ function drawGraph(){if(!state)return;const {w,h}=setCanvasSize();ctx.clearRect(
   const hu=hue(p.id);ctx.beginPath();ctx.fillStyle=dead?'#566463':`hsl(${hu},34%,39%)`;ctx.arc(n.x,y+25,16,0,Math.PI*2);ctx.fill();ctx.fillStyle=dead?'#c0cdbe':'#f8ebd9';ctx.font='600 13px Georgia,serif';ctx.textAlign='center';ctx.fillText(p.first.charAt(0)+p.last.charAt(0),n.x,y+29);
   ctx.fillStyle=dead?'#a3aaa5':'#f1f1e6';ctx.font='600 11px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText(ellipsis(p.first+' '+p.last,19),n.x,y+54,116);
   ctx.fillStyle=dead?'#788986':'#9bb3a8';ctx.font='10px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText(p.birthYear+' – '+(p.deathYear||'●'),n.x,y+70,115);
+  const mate=partner(p),feeling=LEGACY_RELATIONSHIPS.happiness(p,get(state.controlledId));
+  ctx.font='9px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillStyle='#e0bd7f';ctx.fillText(mate?'♥ '+ellipsis(mate.first,16):'— No partner',n.x,y+85,116);
+  if(feeling){ctx.fillStyle=feeling.color;ctx.fillText(feeling.icon+' '+(feeling.score===null?'Unknown':feeling.score+'/100')+' → '+ellipsis(get(state.controlledId).first,10),n.x,y+100,116);}
+  else{ctx.fillStyle='#e0bd7f';ctx.fillText('FOLLOWING',n.x,y+100,116);}
   const attention=attentionCounts.get(p.id);
   if(attention){
    ctx.beginPath();ctx.fillStyle=attention.priority>=4?'#e9a092':'#e8c582';
@@ -1029,7 +1045,7 @@ function chooseSuccessor(id){
 
 function newWorldModal(){showModal(`<div class="eyebrow">THE BEGINNING OF EVERYTHING</div><h2>Begin a new legacy</h2><p>Start with one person, two parents, and a sibling. Every life that follows grows from this history.</p><label for="new-name">Founding character</label><input maxlength="50" id="new-name" class="field-input" value="Alex Morgan" placeholder="First and last name" /><label for="new-sex">Founding character</label><select id="new-sex" class="field-input"><option value="male">Male</option><option value="female">Female</option></select><label for="new-year">Starting year</label><input id="new-year" class="field-input" type="number" min="1800" max="2200" value="2026" /><div class="modal-warning">Creating a new world replaces the current active game. Export your family history first if you want to keep it.</div><div class="modal-actions"><button class="secondary" id="cancel-modal">Cancel</button><button class="primary" id="create-world">Create family →</button></div>`);
  $('#cancel-modal').onclick=closeModal;$('#create-world').onclick=()=>{let v=$('#new-name').value.trim(),y=Number($('#new-year').value);if(!v||!Number.isInteger(y)||y<1800||y>2200){toast('Enter a name and a starting year from 1800 to 2200.');return}newWorld(v,$('#new-sex').value,y);closeModal();saveSoon();setTab('tree');render();toast('A new family story has begun.');};}
-function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">LEGACY <strong>v1.28.0</strong> · Edge-to-edge display · Automatic update checks</p><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
+function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">LEGACY <strong>v1.29.0</strong> · Edge-to-edge display · Automatic update checks</p><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
  $('#realism-select').onchange=e=>{state.realism=e.target.value;saveSoon();toast(`Realism: ${state.realism}.`)};
  $('#export-game').onclick=exportGame;$('#import-game').onclick=()=>$('#import-file').click();$('#import-file').onchange=handleImport;
  $('#save-game').onclick=()=>saveGame().then(ok=>toast(ok?'Family saved on this device.':'Storage unavailable; export a backup instead.'));

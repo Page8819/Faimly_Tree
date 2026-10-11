@@ -43,3 +43,12 @@ test('legacy bonds are converted lazily and yearly history stays bounded',()=>{
  for(let y=2020;y<2070;y++)R.affect(a,b,1,y,'annual gathering');
  assert.ok(a.social.b.history.length<=20);
 });
+test('happiness is directional, read-only and responds to real relationship changes',()=>{
+ const a=make('a'),b=make('b');const original=JSON.stringify([a,b]);
+ assert.equal(R.happiness(a,b).score,null);assert.equal(JSON.stringify([a,b]),original);
+ R.affect(a,b,10,2027,'shared time');const score=R.happiness(a,b).score;
+ R.affect(a,b,20,2028,'support');assert.ok(R.happiness(a,b).score>score);
+ b.social.a.conflict=100;b.social.a.trust=0;b.social.a.closeness=0;
+ assert.equal(R.happiness(b,a).score,0);assert.ok(R.happiness(a,b).score>0);
+ assert.equal(R.happiness(a,a),null);
+});

@@ -38,6 +38,8 @@ test('game boots, offers a choice, advances time and hands off the family',async
  const originalTarget=state.controlledId;
  const inspectedRelative=Object.values(state.people).find(p=>p.id!==originalTarget&&!p.deathYear);
  api.render();
+ const nodes=api.getScene();
+ for(const n of nodes){const mate=nodes.find(x=>x.p.id===n.p.partnerId);if(mate&&mate.p.gen===n.p.gen){assert.equal(n.y,mate.y);assert.equal(Math.abs(n.x-mate.x),164,'partners are adjacent');assert.ok(!nodes.some(x=>x.y===n.y&&x.x>Math.min(n.x,mate.x)&&x.x<Math.max(n.x,mate.x)),'no person between partners');}}
  const followedName=node('#selected-name').textContent;
  const originalCamera=JSON.stringify(api.getCamera()),originalScene=api.getScene().map(n=>n.p.id).join(',');
  api.selectPerson(inspectedRelative.id);
@@ -47,6 +49,7 @@ test('game boots, offers a choice, advances time and hands off the family',async
  assert.equal(JSON.stringify(api.getCamera()),originalCamera);
  assert.equal(api.getScene().map(n=>n.p.id).join(','),originalScene);
  api.showPersonStats(inspectedRelative.id,'actions');
+ assert.match(node('#modal-content').innerHTML,/RELATIONSHIP WITH/);
  assert.equal(state.controlledId,originalTarget,'opening a profile only inspects');
  node('#selected-person').onclick();
  assert.equal(state.selectedId,originalTarget,'Following card opens the followed character');

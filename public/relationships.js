@@ -44,6 +44,16 @@
   return {trust:Math.round(ab.trust),closeness:Math.round(ab.closeness),conflict:Math.round(ab.conflict),sharedYears:ab.sharedYears,
    history:ab.history.slice(-5)};
  }
+ // Read-only view: inspecting somebody must never create or alter a bond.
+ function happiness(a,b){
+  if(!a||!b||a.id===b.id)return null;
+  const old=a.bonds?.[b.id],social=a.social?.[b.id];
+  if(!social&&!Number.isFinite(old))return {score:null,label:'Not established',icon:'○',color:'#96aaa1'};
+  const base=clamp(old??50),trust=clamp(social?.trust??52+(base-50)*.62),closeness=clamp(social?.closeness??base),conflict=clamp(social?.conflict??20-Math.max(0,base-50)*.14+Math.max(0,50-base)*.26);
+  const score=Math.round(clamp(trust*.4+closeness*.4+(100-conflict)*.2));
+  const label=score>=80?'Deeply happy':score>=65?'Happy':score>=45?'Mixed':score>=25?'Strained':'Unhappy';
+  return {score,label,icon:score>=65?'☺':score>=45?'○':'☹',color:score>=65?'#a5d6ba':score>=45?'#e0bd7f':'#eca59a',trust:Math.round(trust),closeness:Math.round(closeness),conflict:Math.round(conflict)};
+ }
  function annual(state,year,rnd,emit){
   const all=Object.values(state.people),map=state.people;
   const pairs=new Set(),childParents=new Map();
@@ -110,5 +120,5 @@
   }
   return {connections:pairs.size,events:Math.min(5,eventCount)};
  }
- root.LEGACY_RELATIONSHIPS={tie,affect,fragility,relation,annual};
+ root.LEGACY_RELATIONSHIPS={tie,affect,fragility,relation,happiness,annual};
 })(typeof window==='undefined'?globalThis:window);
