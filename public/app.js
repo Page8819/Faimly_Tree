@@ -630,8 +630,8 @@ function renderProfile(){const p=get(state.selectedId);if(!p)return;
 }
 
 /* Immersive genealogy: select with a tap, hold to open an accessible full-profile sheet. */
-/* Fixed-height character record: each tab is a complete screen, never a scrolling document. */
-function showPersonStats(id,tab='overview',page=0){
+/* Character record: persistent header and tabs above one continuous scrolling body. */
+function showPersonStats(id,tab='overview'){
  if(state.pendingChoice||state.pendingSuccession)return;
  const p=get(id);if(!p)return;
  const reviewed=LEGACY_ATTENTION.readPerson(state,id);
@@ -666,8 +666,7 @@ function showPersonStats(id,tab='overview',page=0){
   title('Family overview')+'<div class="person-page-summary">'+parents.length+' biological parent'+(parents.length===1?'':'s')+' · '+adopters.length+' adoptive parent'+(adopters.length===1?'':'s')+' · '+children.length+' child'+(children.length===1?'':'ren')+' · '+(q?'Partnered':'No current partner')+'</div>';
  }else if(tab==='health'){
   const info=LEGACY_MEDICINE.current(p),cases=info.active,log=info.history;
-  const size=3,which=Math.max(0,Math.min(page,Math.ceil((cases.length+1)/size)));
-  if(which===0){
+
    const cards=[
     ['Physical wellbeing',needs.physical+' / 100'],['Mental wellbeing',needs.mental+' / 100'],
     ['Active conditions',String(cases.length)],['Medical insurance',info.insurance]
@@ -676,32 +675,28 @@ function showPersonStats(id,tab='overview',page=0){
    body=title('Health record')+'<div class="person-page-metrics">'+cards.map(([a,b])=>metric(a,b)).join('')+'</div>'+
     '<p class="person-page-description">'+(p.causeOfDeath?'Recorded cause of death: '+esc(p.causeOfDeath):'Health conditions develop over time. Care may help, but results are uncertain.')+'</p>'+
     title('Medical services')+'<div class="person-medical-services">'+services+'</div>';
-  }else{
-   const offset=(which-1)*size;
-   body=title('Ailments & medical history')+
-    '<div class="person-page-history">'+(cases.length?cases.slice(offset,offset+size).map(c=>'<div class="person-page-event"><b>'+c.since+'</b><span>'+esc(c.diagnosed?c.name:'Undiagnosed symptoms')+' · '+esc(c.diagnosed?'Stage '+c.stage:'Not yet diagnosed')+'</span></div>').join(''):'<p class="person-page-empty">No active ailments recorded.</p>')+'</div>'+
+   body+=title('Ailments & medical history')+
+    '<div class="person-page-history">'+(cases.length?cases.map(c=>'<div class="person-page-event"><b>'+c.since+'</b><span>'+esc(c.diagnosed?c.name:'Undiagnosed symptoms')+' · '+esc(c.diagnosed?'Stage '+c.stage:'Not yet diagnosed')+'</span></div>').join(''):'<p class="person-page-empty">No active ailments recorded.</p>')+'</div>'+
     title('Recent care')+'<p class="person-page-description">'+esc(log.at(-1)?.message||'No previous medical visits.')+'</p>';
-  }
-  body+=pageControls('health',which,Math.max(1,Math.ceil(cases.length/3)+1));
+
  }else if(tab==='education'){
-  const info=LEGACY_EDUCATION.details(p,age(p)),available=info.programs,perPage=4;
-  const pages=Math.max(1,Math.ceil(available.length/perPage));page=Math.max(0,Math.min(page,pages-1));
+  const info=LEGACY_EDUCATION.details(p,age(p)),available=info.programs;
   const credentialNames=info.credentials.map(c=>c.name);
   const header=info.current?'Current: '+info.current.name+' · '+info.current.progress+' / '+info.current.years+' years':'Not currently enrolled';
   body=title('Education & qualifications')+'<div class="person-page-description">'+esc(credentialNames.length?credentialNames.join(' · '):'No formal qualifications yet')+'</div>'+
   title('Current studies')+'<div class="person-page-summary">'+esc(header)+'</div>'+
-  title('Choose an education pathway')+'<div class="person-path-cards">'+available.slice(page*perPage,(page+1)*perPage).map(prog=>
-    '<button class="person-path-card" data-education-id="'+prog.id+'" '+(!alive(p)||state.mode==='individual'&&state.controlledId!==p.id||!prog.eligibility.ok?'disabled':'')+'><span><strong>'+esc(prog.name)+'</strong><small>'+esc(prog.category)+' · '+prog.years+'yr · '+money(prog.cost)+'</small></span><small>'+esc(prog.eligibility.ok?'Enroll →':prog.eligibility.reason)+'</small></button>').join('')+'</div>'+pageControls('education',page,pages);
+  title('Choose an education pathway')+'<div class="person-path-cards">'+available.map(prog=>
+    '<button class="person-path-card" data-education-id="'+prog.id+'" '+(!alive(p)||state.mode==='individual'&&state.controlledId!==p.id||!prog.eligibility.ok?'disabled':'')+'><span><strong>'+esc(prog.name)+'</strong><small>'+esc(prog.category)+' · '+prog.years+'yr · '+money(prog.cost)+'</small></span><small>'+esc(prog.eligibility.ok?'Enroll →':prog.eligibility.reason)+'</small></button>').join('')+'</div>';
  }else if(tab==='career'){
   const shift=LEGACY_CALENDAR.schedule(p,state,LEGACY_CAREERS.jobs);
-  const list=career.opportunities,perPage=4,pages=Math.max(1,Math.ceil(list.length/perPage));page=Math.max(0,Math.min(page,pages-1));
+  const list=career.opportunities;
   body=title('Current occupation')+'<div class="person-page-metrics">'+[
    ['Position',career.current?.name||'Unemployed'],['Estimated yearly income',money(career.salary)],
    ['Experience',career.experience+' years'],['Career grade',career.grade+' / 5']
   ].map(([a,b])=>metric(a,b)).join('')+'</div>'+
    '<p class="person-page-description">'+esc(p.city)+' · '+calendarTime(shift.minutes)+' '+esc(shift.abbreviation)+' · '+esc(shift.reason)+(shift.scheduled?' · '+calendarTime(shift.start)+'–'+calendarTime(shift.end):'')+(shift.holiday?' · '+esc(shift.holiday):'')+'<br>Tenure: '+career.tenure+' years · Performance: '+career.performance+'/100. Shifts are modeled by occupation and location.</p>'+
-   title('Explore real occupations')+'<div class="person-path-cards">'+list.slice(page*perPage,(page+1)*perPage).map(j=>
-    '<button class="person-path-card" data-career-id="'+j.id+'" '+(!alive(p)||state.mode==='individual'&&state.controlledId!==p.id||!j.eligibility.ok?'disabled':'')+'><span><strong>'+esc(j.name)+'</strong><small>'+esc(j.sector)+' · '+money(j.salary)+'/yr</small></span><small>'+esc(j.eligibility.ok?'Apply →':j.eligibility.reason)+'</small></button>').join('')+'</div>'+pageControls('career',page,pages);
+   title('Explore real occupations')+'<div class="person-path-cards">'+list.map(j=>
+    '<button class="person-path-card" data-career-id="'+j.id+'" '+(!alive(p)||state.mode==='individual'&&state.controlledId!==p.id||!j.eligibility.ok?'disabled':'')+'><span><strong>'+esc(j.name)+'</strong><small>'+esc(j.sector)+' · '+money(j.salary)+'/yr</small></span><small>'+esc(j.eligibility.ok?'Apply →':j.eligibility.reason)+'</small></button>').join('')+'</div>';
  }else if(tab==='stats'){
   const facts=[
    ['Birth year',p.birthYear],['Death year',p.deathYear||'—'],['Generation',p.gen+1],['Annual income',age(p)>=18&&!p.retired?money(incomeFor(p)):'—'],
@@ -710,25 +705,23 @@ function showPersonStats(id,tab='overview',page=0){
    ['Family involvement',life.familyTime||0],['Biological parents',parents.length],['Adoptive parents',adopters.length],['Children',children.length]
   ];
   const traits=[['Curiosity',p.traits?.openness],['Discipline',p.traits?.conscientiousness],['Sociability',p.traits?.extraversion],['Cooperation',p.traits?.agreeableness],['Emotional sensitivity',p.traits?.emotionality]];
-  body=(page===0?title('Wellbeing & needs')+'<div class="person-page-traits">'+[['Physical health',needs.physical],['Mental wellbeing',needs.mental],['Energy',needs.energy],['Stress',needs.stress],['Resilience',needs.resilience],['Agency',needs.agency]].map(([a,b])=>trait(a,b)).join('')+'</div>'+title('Personality · five traits')+'<div class="person-page-traits">'+traits.map(([a,b])=>trait(a,b)).join('')+'</div>':
-   (page===1?title('Career & education')+'<div class="person-page-facts">'+facts.map(([a,b])=>metric(a,b)).join('')+'</div>':
+  body=title('Wellbeing & needs')+'<div class="person-page-traits">'+[['Physical health',needs.physical],['Mental wellbeing',needs.mental],['Energy',needs.energy],['Stress',needs.stress],['Resilience',needs.resilience],['Agency',needs.agency]].map(([a,b])=>trait(a,b)).join('')+'</div>'+title('Personality · five traits')+'<div class="person-page-traits">'+traits.map(([a,b])=>trait(a,b)).join('')+'</div>'+
+   title('Career & education')+'<div class="person-page-facts">'+facts.map(([a,b])=>metric(a,b)).join('')+'</div>'+
    title('Household economy')+'<div class="person-page-facts">'+[
    ['Cash balance',money(finance.cash)],['Investments',money(finance.investments)],['Property value',money(finance.propertyValue)],['Home equity',money(finance.equity)],
    ['Mortgage',money(finance.mortgage)],['Consumer debt',money(finance.consumerDebt)],['Education debt',money(life.educationDebt||0)],['Net worth',money(finance.netWorth)],
    ['Last gross income',money(finance.lastStatement?.gross||0)],['Income taxes',money(finance.lastStatement?.tax||0)],['Annual living costs',money(finance.lastStatement?.living||0)],['Annual net change',money(finance.lastStatement?.netChange||0)],
    ['Household budget',finance.budgetMode],['Mortgage payment',money(finance.lastStatement?.mortgagePayment||0)],['Interest on debts',money(finance.lastStatement?.debtInterest||0)],['Home appreciation',money(finance.lastStatement?.houseGrowth||0)]
-   ].map(([a,b])=>metric(a,b)).join('')+'</div>'))+pageControls('stats',Math.max(0,Math.min(2,page)),3);
+   ].map(([a,b])=>metric(a,b)).join('')+'</div>';
  }else if(tab==='family'){
-  const size=6,pages=Math.max(1,Math.ceil(rel.length/size));page=Math.max(0,Math.min(page,pages-1));
   body=title('Family connections · '+rel.length)+
-   '<div class="person-page-connections">'+(rel.length?rel.slice(page*size,(page+1)*size).map(x=>'<button class="person-page-relation" data-person="'+esc(x.person.id)+'"><span><strong>'+esc(full(x.person))+'</strong><small>'+esc(x.type)+' · Trust '+x.social.trust+' · Conflict '+x.social.conflict+'</small></span><b>'+x.strength+' / 100</b></button>').join(''):'<p class="person-page-empty">No recorded close family connections yet.</p>')+'</div>'+pageControls('family',page,pages);
+   '<div class="person-page-connections">'+(rel.length?rel.map(x=>'<button class="person-page-relation" data-person="'+esc(x.person.id)+'"><span><strong>'+esc(full(x.person))+'</strong><small>'+esc(x.type)+' · Trust '+x.social.trust+' · Conflict '+x.social.conflict+'</small></span><b>'+x.strength+' / 100</b></button>').join(''):'<p class="person-page-empty">No recorded close family connections yet.</p>')+'</div>';
  }else if(tab==='stories'){
   const stories=LEGACY_LIVING_IMPACT.allFor(state,id),active=stories.filter(x=>x.status==='active').length;
-  const count=3,pages=Math.max(1,Math.ceil(stories.length/count));page=Math.max(0,Math.min(page,pages-1));
   body=title('Family stories · '+active+' active / '+stories.length+' recorded')+
    '<p class="person-page-description">These storylines connect earlier choices to later family responsibilities and outcomes.</p>'+
-   '<div class="person-page-connections">'+(stories.length?stories.slice(page*count,(page+1)*count).map(x=>
-    '<button class="person-page-relation" data-open-story="'+esc(x.id)+'"><span><strong>'+esc(x.title||x.kind)+'</strong><small>'+x.startedYear+' · '+esc(x.cause||'Family event')+'</small></span><b>'+esc(x.status)+'</b></button>').join(''):'<p class="person-page-empty">This person has no recorded living-decision storylines yet.</p>')+'</div>'+pageControls('stories',page,pages);
+   '<div class="person-page-connections">'+(stories.length?stories.map(x=>
+    '<button class="person-page-relation" data-open-story="'+esc(x.id)+'"><span><strong>'+esc(x.title||x.kind)+'</strong><small>'+x.startedYear+' · '+esc(x.cause||'Family event')+'</small></span><b>'+esc(x.status)+'</b></button>').join(''):'<p class="person-page-empty">This person has no recorded living-decision storylines yet.</p>')+'</div>';
  }else if(tab==='actions'){
   const canAct=alive(p)&&(state.mode==='family'||state.controlledId===p.id);
   const actions=[['partner','♥','Find partner'],['child','✦','Grow family'],['career','↑','Career'],['educate','◈','Education'],['move','⌁','Relocate'],['support','♡','Support kin'],['home','⌂','Buy a home'],['budget','◇','Adjust budget']];
@@ -737,12 +730,8 @@ function showPersonStats(id,tab='overview',page=0){
     state.controlledId!==p.id?'<button class="person-page-take" id="sheet-take-control">▶ Live as '+esc(p.first)+'</button>':
     '<p class="person-page-description">Your choices change relationships, finances and future opportunities. Major events also appear as time advances.</p>');
  }else if(tab==='history'){
-  const size=4,pages=Math.max(1,Math.ceil(history.length/size));page=Math.max(0,Math.min(page,pages-1));
   body=title('Family chronicle · '+history.length+' events')+'<div class="person-page-history">'+
-   (history.length?history.slice(page*size,(page+1)*size).map(e=>'<div class="person-page-event"><b>'+esc(e.year)+'</b><span>'+esc(e.message)+'</span></div>').join(''):'<p class="person-page-empty">No recorded events yet.</p>')+'</div>'+pageControls('history',page,pages);
- }
- function pageControls(which,current,total){
-  return total>1?'<div class="person-page-pagination"><button data-page="-1" '+(current===0?'disabled':'')+' aria-label="Previous '+which+' page">← Prev</button><span>Page '+(current+1)+' of '+total+'</span><button data-page="1" '+(current===total-1?'disabled':'')+' aria-label="Next '+which+' page">Next →</button></div>':'';
+   (history.length?history.map(e=>'<div class="person-page-event"><b>'+esc(e.year)+'</b><span>'+esc(e.message)+'</span></div>').join(''):'<p class="person-page-empty">No recorded events yet.</p>')+'</div>';
  }
  const tabs=[['overview','Overview'],['health','Health'],['education','School'],['career','Jobs'],['stats','Stats'],['family','Family'],['stories','Stories'],['actions','Actions'],['history','History']];
  const tabNav=tabs.map(([key,name])=>'<button role="tab" data-person-tab="'+key+'" aria-selected="'+(tab===key)+'" class="'+(tab===key?'active':'')+'">'+name+'</button>').join('');
@@ -752,20 +741,19 @@ function showPersonStats(id,tab='overview',page=0){
  $('#person-sheet-close').onclick=closeModal;
  $$('[data-person-tab]').forEach(b=>b.onclick=()=>showPersonStats(id,b.dataset.personTab));
  $$('[data-person]').forEach(b=>b.onclick=()=>showPersonStats(b.dataset.person));
- $$('[data-page]').forEach(b=>b.onclick=()=>showPersonStats(id,tab,page+Number(b.dataset.page)));
  $$('[data-open-story]').forEach(b=>b.onclick=()=>showStoryDetails(id,b.dataset.openStory));
  $$('[data-action]').forEach(b=>b.onclick=()=>{if(b.dataset.action==='career')return showPersonStats(id,'career');if(b.dataset.action==='educate')return showPersonStats(id,'education');decide(b.dataset.action);if(!state.pendingChoice&&!state.pendingSuccession)showPersonStats(id,'actions');});
  $$('[data-education-id]').forEach(b=>b.onclick=()=>{
   if(state.mode==='individual'&&id!==state.controlledId){toast('Take control to enroll in education.');return;}
   const r=LEGACY_EDUCATION.enroll(p,b.dataset.educationId,age(p),state.year);
-  if(r.ok){addEvent(state.year,'education',full(p)+': '+r.message,[p.id]);saveSoon();render();showPersonStats(id,'education',page);}
+  if(r.ok){addEvent(state.year,'education',full(p)+': '+r.message,[p.id]);saveSoon();render();showPersonStats(id,'education');}
   toast(r.message);
  });
  $$('[data-career-id]').forEach(b=>b.onclick=()=>{
   if(state.mode==='individual'&&id!==state.controlledId){toast('Take control to apply for a career.');return;}
   const result=LEGACY_CAREERS.apply(p,b.dataset.careerId,age(p),state.year,rnd);
   if(result.ok){addEvent(state.year,'career',full(p)+': '+result.message,[p.id]);saveSoon();render();}
-  toast(result.message);showPersonStats(id,'career',page);
+  toast(result.message);showPersonStats(id,'career');
  });
  $$('[data-medical-care]').forEach(b=>b.onclick=()=>{
   if(state.mode==='individual'&&id!==state.controlledId){toast('Take control before choosing medical care.');return;}
@@ -1045,7 +1033,7 @@ function chooseSuccessor(id){
 
 function newWorldModal(){showModal(`<div class="eyebrow">THE BEGINNING OF EVERYTHING</div><h2>Begin a new legacy</h2><p>Start with one person, two parents, and a sibling. Every life that follows grows from this history.</p><label for="new-name">Founding character</label><input maxlength="50" id="new-name" class="field-input" value="Alex Morgan" placeholder="First and last name" /><label for="new-sex">Founding character</label><select id="new-sex" class="field-input"><option value="male">Male</option><option value="female">Female</option></select><label for="new-year">Starting year</label><input id="new-year" class="field-input" type="number" min="1800" max="2200" value="2026" /><div class="modal-warning">Creating a new world replaces the current active game. Export your family history first if you want to keep it.</div><div class="modal-actions"><button class="secondary" id="cancel-modal">Cancel</button><button class="primary" id="create-world">Create family →</button></div>`);
  $('#cancel-modal').onclick=closeModal;$('#create-world').onclick=()=>{let v=$('#new-name').value.trim(),y=Number($('#new-year').value);if(!v||!Number.isInteger(y)||y<1800||y>2200){toast('Enter a name and a starting year from 1800 to 2200.');return}newWorld(v,$('#new-sex').value,y);closeModal();saveSoon();setTab('tree');render();toast('A new family story has begun.');};}
-function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">LEGACY <strong>v1.29.0</strong> · Edge-to-edge display · Automatic update checks</p><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
+function menuModal(){showModal(`<div class="eyebrow">LEGACY / WORLD SETTINGS</div><h2>Your family, your rules</h2><p>Saved automatically to this device. Export a JSON backup to protect your dynasty or move it elsewhere.</p><label for="realism-select">Simulation realism</label><select id="realism-select" class="field-input"><option value="casual" ${state.realism==='casual'?'selected':''}>Casual · Easier player choices</option><option value="realistic" ${state.realism==='realistic'?'selected':''}>Realistic · Probabilistic decisions</option><option value="strict" ${state.realism==='strict'?'selected':''}>Strict · More uncertainty</option></select><button class="menu-action primary" id="export-game">↓ Export family save (.json)</button><button class="menu-action" id="import-game">↑ Import family save (.json)</button><input type="file" accept=".json,application/json" class="file-input" id="import-file" /><button class="menu-action" id="save-game">✓ Save on this device now</button><button class="menu-action" id="new-from-menu">＋ Begin a new family</button><p class="modal-note">LEGACY <strong>v1.30.0</strong> · Edge-to-edge display · Automatic update checks</p><p class="modal-note">Realism settings affect gameplay decisions only. The current demographic model is a prototype and is not calibrated to scientific population data.</p><div class="modal-actions"><button class="secondary" id="close-menu">Close</button></div>`);
  $('#realism-select').onchange=e=>{state.realism=e.target.value;saveSoon();toast(`Realism: ${state.realism}.`)};
  $('#export-game').onclick=exportGame;$('#import-game').onclick=()=>$('#import-file').click();$('#import-file').onchange=handleImport;
  $('#save-game').onclick=()=>saveGame().then(ok=>toast(ok?'Family saved on this device.':'Storage unavailable; export a backup instead.'));

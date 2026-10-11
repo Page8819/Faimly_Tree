@@ -40,6 +40,15 @@ test('game boots, offers a choice, advances time and hands off the family',async
  api.render();
  const nodes=api.getScene();
  for(const n of nodes){const mate=nodes.find(x=>x.p.id===n.p.partnerId);if(mate&&mate.p.gen===n.p.gen){assert.equal(n.y,mate.y);assert.equal(Math.abs(n.x-mate.x),164,'partners are adjacent');assert.ok(!nodes.some(x=>x.y===n.y&&x.x>Math.min(n.x,mate.x)&&x.x<Math.max(n.x,mate.x)),'no person between partners');}}
+ for(const tab of ['overview','health','education','career','stats','family','stories','actions','history']){
+  api.showPersonStats(originalTarget,tab);
+  const html=node('#modal-content').innerHTML.replaceAll('&amp;','&');
+  assert.ok(!html.includes('data-page='),'no pagination in '+tab);
+  if(tab==='career')assert.equal((html.match(/data-career-id=/g)||[]).length,sandbox.LEGACY_CAREERS.details(state.people[originalTarget],state.year-state.people[originalTarget].birthYear).opportunities.length,'every career is rendered');
+  if(tab==='stats')for(const title of ['Wellbeing & needs','Career & education','Household economy'])assert.ok(html.includes(title));
+  if(tab==='health')assert.ok(html.includes('Medical services')&&html.includes('Ailments & medical history'));
+ }
+ api.selectPerson(originalTarget);
  const followedName=node('#selected-name').textContent;
  const originalCamera=JSON.stringify(api.getCamera()),originalScene=api.getScene().map(n=>n.p.id).join(',');
  api.selectPerson(inspectedRelative.id);

@@ -195,3 +195,26 @@ button:focus-visible{outline:2px solid #f0ce8e;outline-offset:3px}
 .relationship-partner{color:#e0bd7f;font-size:13px;font-weight:600;margin:8px 0;}
 .relationship-feeling{display:flex;align-items:center;gap:10px;margin-top:10px;color:var(--feeling);}
 .relationship-feeling>span{font-size:28px;}.relationship-feeling>div{flex:1;min-width:0;}.relationship-feeling strong,.relationship-feeling small{display:block;font-size:12px;line-height:1.5;}.relationship-feeling meter{width:70px;height:10px;accent-color:var(--feeling);}
+
+/* 1.30: one scroll surface per menu; pinned record heading and section tabs. */
+.modal{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+.modal.person-profile-dialog{overflow:hidden;}
+.person-sheet-compact .person-sheet-screen{display:block;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding:16px 16px max(24px,env(safe-area-inset-bottom,0px));scrollbar-gutter:stable;}
+.person-sheet-screen>*+*{margin-top:14px;}
+.person-sheet-screen .person-page-title{margin-top:24px;margin-bottom:10px;}
+.person-sheet-screen .person-page-connections,.person-sheet-screen .person-page-history,.person-sheet-screen .person-path-cards,.person-sheet-screen .person-page-actions{flex:none;overflow:visible;min-height:auto;}
+.person-sheet-screen .person-page-facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+.person-sheet-screen .person-page-facts .person-page-metric{padding:12px;min-height:66px;}
+.person-sheet-screen .person-page-facts .person-page-metric small{font-size:10px;}
+.person-sheet-screen .person-page-facts .person-page-metric strong{font-size:14px;}
+.person-sheet-screen .person-page-description{overflow:visible;}
+.person-sheet-screen .person-page-relation strong{white-space:normal;overflow:visible;}
+.person-sheet-screen .person-page-relation{min-height:58px;}
+.time-popup[open]{display:flex;flex-direction:column;}
+.time-popup-scroll{flex:1;touch-action:pan-y;-webkit-overflow-scrolling:touch;}
+
+.modal.living-decision-dialog{overflow-y:auto;overscroll-behavior:contain;}
+.living-choice-sheet,.living-outcome-sheet{max-height:none;overflow:visible;flex-shrink:0;}
+.living-choice-sheet>*,.living-outcome-sheet>*{flex-shrink:0;}
+.living-outcome-sheet .person-page-history{flex:none;overflow:visible;}
+.person-page-event span{display:block;-webkit-line-clamp:unset;overflow:visible;}
